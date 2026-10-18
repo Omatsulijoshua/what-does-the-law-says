@@ -39,3 +39,4 @@ server/analytics.json
 
 .vercel
 .env*
+!.env.example
