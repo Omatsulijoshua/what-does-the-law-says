@@ -20,11 +20,11 @@ For the Express backend, run npm install and npm start from the server directory
 
 The admin interface is a separate page at `/admin/`, with its code, styles and Express admin routes in the root `admin/` folder. See [admin/README.md](admin/README.md). It is not linked from the public interface.
 
-api/chat.js provides the Vercel chat endpoint. Production requests use the current site origin by default. To use a separate backend, configure VITE_API_URL or VITE_PRODUCTION_API_URL with its origin, for example https://api.example.com rather than a URL ending in /api.
+The frontend runs on Vercel at https://what-does-nigeria-law-says.thispage.xyz/ and calls the Express backend on Render at https://what-does-nigeria-law-says-api.onrender.com. VITE_API_URL is set to that backend origin in Vercel Production. The legacy api/ serverless entry is excluded from Vercel uploads; chat, analytics, articles and admin API requests use Render.
 
 Express admin endpoints require ADMIN_EMAIL and ADMIN_PASSWORD in the backend environment. The dashboard submits the credentials entered at sign-in; there are no built-in admin credentials. Admins sign in again after refreshing. Do not put backend credentials into VITE_* variables.
 
-Add your public domain to canonical and sharing metadata when deploying. SVG social preview support varies; the banner is supplied as a vector source asset.
+The custom public domain is configured in canonical/sharing metadata and Firebase's authorized-domain list. SVG social preview support varies; the banner is supplied as a vector source asset. Render uses the free plan with an ephemeral filesystem; use a persistent disk or database before relying on analytics or articles to survive restarts and redeploys.
 
 ## Checks
 

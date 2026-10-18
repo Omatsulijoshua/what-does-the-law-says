@@ -9,3 +9,4 @@ server/analytics.json
 assets
 admin/preview.png
 *.log
+/api

@@ -8,6 +8,6 @@ Open `/admin/` directly. The public page does not include an admin link or impor
 - `routes.js`: Express admin API registration, imported only by `server/index.js`.
 - `redirect.js`: local development and preview redirect from `/admin` to `/admin/`.
 
-The existing `/api/admin/*` URLs and backend credential requirements are unchanged. Configure `ADMIN_EMAIL` and `ADMIN_PASSWORD` in the Express server environment and point `VITE_API_URL` to that server if it runs on a different origin. Vercel's chat function alone does not provide the Express admin endpoints.
+The `/api/admin/*` APIs run on the Render backend at `https://what-does-nigeria-law-says-api.onrender.com`. The public admin page is `https://what-does-nigeria-law-says.thispage.xyz/admin/`. Vercel Production points `VITE_API_URL` to Render. `ADMIN_EMAIL` and `ADMIN_PASSWORD` are provided to the backend through its Render secret file. The generated login details are kept in the ignored local `.vercel/admin-credentials.txt` file.
 
 Run the normal root build command to produce both `dist/index.html` and `dist/admin/index.html`. Hosts should serve `/admin/` from the latter; static hosts without directory-index support can use `/admin/index.html`.
