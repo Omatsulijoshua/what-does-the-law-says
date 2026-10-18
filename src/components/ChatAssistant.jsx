@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Send, Trash2, ShieldCheck, House, Gavel, Car, HeartHandshake, KeyRound, ArrowUpRight } from 'lucide-react';
+import { MarkdownRenderer } from './MarkdownRenderer';
 
 export function ChatAssistant({ messages, onSendMessage, onClearChat, isGenerating, onSuggestionClick, currentUser }) {
   const [input, setInput] = useState('');
@@ -147,50 +148,7 @@ export function ChatAssistant({ messages, onSendMessage, onClearChat, isGenerati
                 {msg.role === 'user' ? (currentUser ? currentUser.avatar : 'U') : 'AI'}
               </div>
               <div className="message-content">
-                <div style={{ whiteSpace: 'pre-wrap' }}>
-                  {msg.content.split('\n').map((rawLine, lIdx) => {
-                    // Remove em-dashes and en-dashes cleanly
-                    const line = rawLine
-                      .replace(/\s*[—―]\s*/g, ', ')
-                      .replace(/\s*–\s*/g, ' - ');
-
-                    const renderFormatted = (text) => {
-                      const parts = text.split('**');
-                      if (parts.length <= 1) return text;
-                      return parts.map((part, pIdx) =>
-                        pIdx % 2 === 1 ? <strong key={pIdx} style={{ color: 'var(--gold-primary)', fontWeight: 600 }}>{part}</strong> : part
-                      );
-                    };
-
-                    if (line.startsWith('### ')) {
-                      return <h4 key={lIdx} style={{ margin: '14px 0 6px', fontSize: '0.96rem', fontWeight: 700, color: 'var(--green-accent)' }}>{renderFormatted(line.slice(4))}</h4>;
-                    }
-                    if (line.startsWith('## ')) {
-                      return <h3 key={lIdx} style={{ margin: '16px 0 8px', fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)' }}>{renderFormatted(line.slice(3))}</h3>;
-                    }
-                    if (line.startsWith('# ')) {
-                      return <h2 key={lIdx} style={{ margin: '18px 0 10px', fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)' }}>{renderFormatted(line.slice(2))}</h2>;
-                    }
-                    if (line.startsWith('> ')) {
-                      return <blockquote key={lIdx}>{renderFormatted(line.slice(2))}</blockquote>;
-                    }
-                    if (/^[•\-\*]\s+/.test(line)) {
-                      return <li key={lIdx} style={{ marginLeft: '18px', margin: '4px 0 4px 18px', listStyleType: 'disc' }}>{renderFormatted(line.replace(/^[•\-\*]\s+/, ''))}</li>;
-                    }
-                    if (/^\d+\.\s+/.test(line)) {
-                      return <li key={lIdx} style={{ marginLeft: '18px', margin: '4px 0 4px 18px', listStyleType: 'decimal' }}>{renderFormatted(line.replace(/^\d+\.\s+/, ''))}</li>;
-                    }
-                    if (line.trim() === '') {
-                      return <div key={lIdx} style={{ height: '8px' }} />;
-                    }
-
-                    return (
-                      <p key={lIdx} style={{ margin: '6px 0', lineHeight: '1.65' }}>
-                        {renderFormatted(line)}
-                      </p>
-                    );
-                  })}
-                </div>
+                <MarkdownRenderer content={msg.content} />
               </div>
             </div>
           ))
