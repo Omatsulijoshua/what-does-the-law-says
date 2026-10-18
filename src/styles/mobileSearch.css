@@ -48,7 +48,8 @@
 @media (max-width: 768px) {
   :root[data-theme="dark"] { --green-accent: #7fc7a0; --green-primary: #216747; --text-secondary: #acb9b2; --text-muted: #94a49b; }
   :root[data-theme="light"] .assistant-panel { background: var(--bg-primary); }
-  .assistant-panel > .watermark-bg { display: block; opacity: .04; }
+  .assistant-panel > .watermark-bg { display: block; top: 31%; width: 94%; height: 360px; opacity: .13; }
+  :root[data-theme="light"] .assistant-panel > .watermark-bg { opacity: .075; }
   .assistant-panel { background: var(--bg-primary); }
   .app-topbar { min-height: 68px; height: auto; padding: calc(10px + env(safe-area-inset-top)) 16px 10px; gap: 8px; background: var(--bg-primary); border-bottom: 0; backdrop-filter: none; }
   .brand { flex: 1; min-width: 0; gap: 8px; }

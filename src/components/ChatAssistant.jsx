@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from 'react';
-import { BrandEmblems } from './BrandEmblems';
 import { Send, Trash2, ShieldCheck, House, Gavel, Car, HeartHandshake, KeyRound, ArrowUpRight } from 'lucide-react';
 
 export function ChatAssistant({ messages, onSendMessage, onClearChat, isGenerating, onSuggestionClick, currentUser }) {
@@ -119,10 +118,6 @@ export function ChatAssistant({ messages, onSendMessage, onClearChat, isGenerati
       <div className="chat-container" ref={chatContainerRef}>
         {messages.length === 0 ? (
           <div className="welcome-screen">
-            <div className="welcome-logo">
-              <BrandEmblems />
-            </div>
-            
             <p className="welcome-eyebrow">YOUR EVERYDAY LEGAL GUIDE</p>
             <h1 className="welcome-title">
               What Does <span>Nigerian Law Say?</span>

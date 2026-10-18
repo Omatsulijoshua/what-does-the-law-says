@@ -1,6 +1,6 @@
 .national-emblems { display: inline-flex; align-items: center; justify-content: center; gap: 14px; flex-shrink: 0; }
 .national-emblems img { display: block; object-fit: contain; }
-.national-emblems__coat { width: 78px; height: 66px; padding: 3px; background: #fff; border-radius: 10px; }
+.national-emblems__coat { width: 78px; height: 66px; padding: 0; filter: drop-shadow(0 3px 8px rgba(0, 0, 0, .14)); }
 .national-emblems__companions { display: flex; flex-direction: column; align-items: center; gap: 7px; }
 .national-emblems__flag { width: 40px; height: 20px; border: 1px solid #cbd8ce; border-radius: 2px; }
 .national-emblems__court { width: 36px; height: 36px; }

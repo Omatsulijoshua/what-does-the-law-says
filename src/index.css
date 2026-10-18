@@ -109,7 +109,7 @@ body {
   background-size: contain;
   background-position: center;
   background-repeat: no-repeat;
-  opacity: 0.06;
+  opacity: 0.17;
   pointer-events: none;
   z-index: 0;
   transition: var(--transition-smooth);
@@ -117,7 +117,7 @@ body {
 
 :root[data-theme="light"] {
   .watermark-bg {
-    opacity: 0.045;
+    opacity: 0.09;
   }
 }
 
@@ -424,10 +424,13 @@ body {
 
 .assistant-panel > .watermark-bg {
   position: absolute;
-  top: 50%;
+  top: 46%;
   left: 50%;
-  width: min(88%, 600px);
-  height: min(80%, 600px);
+  width: min(86%, 620px);
+  height: min(65%, 520px);
+  max-width: 620px;
+  filter: saturate(.7);
+  mask-image: linear-gradient(to bottom, #000 0%, #000 65%, transparent 100%);
 }
 
 .app-topbar {
