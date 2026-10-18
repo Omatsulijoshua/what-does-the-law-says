@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { LogIn, RefreshCw, LogOut, Users, Eye, EyeOff, FileText, Calendar, Clock, X, Send, BookOpen, Search, Tags, Bot, Key, CheckCircle2, AlertCircle } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { LogIn, RefreshCw, LogOut, Users, Eye, EyeOff, FileText, Calendar, Clock, X, Send, BookOpen, Search, Tags, Bot, Key, CheckCircle2, AlertCircle, ArrowUpDown } from 'lucide-react';
 import { BrandEmblems } from '../src/components/BrandEmblems';
 import { fetchWithTimeout, getApiUrl, getApiEndpoint } from '../src/utils/api';
 
@@ -37,6 +37,15 @@ export function AdminDashboard() {
   const [isTestingAi, setIsTestingAi] = useState(false);
   const [aiTestFeedback, setAiTestFeedback] = useState(null);
   const [isSavingAi, setIsSavingAi] = useState(false);
+
+  // Date & Time Filter States
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [searchSortOrder, setSearchSortOrder] = useState('newest'); // 'newest' | 'oldest' | 'client' | 'area'
+  const [visitorSortOrder, setVisitorSortOrder] = useState('newest'); // 'newest' | 'oldest' | 'email' | 'page'
+  const [searchFilterKeyword, setSearchFilterKeyword] = useState('');
+  const [visitorFilterKeyword, setVisitorFilterKeyword] = useState('');
+  const [activeAnalyticsSubView, setActiveAnalyticsSubView] = useState('overview'); // 'overview' | 'visitors' | 'searches'
 
   // Newsletter Composer Form States
   const [newsTitle, setNewsTitle] = useState('');
@@ -290,6 +299,88 @@ export function AdminDashboard() {
     return entries.sort((a, b) => b[1] - a[1])[0][0];
   };
 
+  // Filtered and Sorted Visits List
+  const filteredVisits = useMemo(() => {
+    if (!stats || !Array.isArray(stats.visits)) return [];
+    let list = [...stats.visits];
+
+    // Filter by Date Range
+    if (startDate) {
+      const startMs = new Date(startDate).setHours(0, 0, 0, 0);
+      list = list.filter(v => (v.timestamp || 0) >= startMs);
+    }
+    if (endDate) {
+      const endMs = new Date(endDate).setHours(23, 59, 59, 999);
+      list = list.filter(v => (v.timestamp || 0) <= endMs);
+    }
+
+    // Filter by Keyword
+    if (visitorFilterKeyword.trim()) {
+      const q = visitorFilterKeyword.trim().toLowerCase();
+      list = list.filter(v => 
+        (v.email && v.email.toLowerCase().includes(q)) ||
+        (v.userName && v.userName.toLowerCase().includes(q)) ||
+        (v.ip && v.ip.toLowerCase().includes(q)) ||
+        (v.path && v.path.toLowerCase().includes(q)) ||
+        (v.sessionId && v.sessionId.toLowerCase().includes(q))
+      );
+    }
+
+    // Sort Order
+    if (visitorSortOrder === 'newest') {
+      list.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    } else if (visitorSortOrder === 'oldest') {
+      list.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+    } else if (visitorSortOrder === 'email') {
+      list.sort((a, b) => (a.email || 'Visitor').localeCompare(b.email || 'Visitor'));
+    } else if (visitorSortOrder === 'page') {
+      list.sort((a, b) => (a.path || '/').localeCompare(b.path || '/'));
+    }
+
+    return list;
+  }, [stats, startDate, endDate, visitorFilterKeyword, visitorSortOrder]);
+
+  // Filtered and Sorted Searches List
+  const filteredSearches = useMemo(() => {
+    if (!stats) return [];
+    const sourceList = stats.allSearches || stats.recentSearches || [];
+    let list = [...sourceList];
+
+    // Filter by Date Range
+    if (startDate) {
+      const startMs = new Date(startDate).setHours(0, 0, 0, 0);
+      list = list.filter(s => (s.timestamp || 0) >= startMs);
+    }
+    if (endDate) {
+      const endMs = new Date(endDate).setHours(23, 59, 59, 999);
+      list = list.filter(s => (s.timestamp || 0) <= endMs);
+    }
+
+    // Filter by Keyword
+    if (searchFilterKeyword.trim()) {
+      const q = searchFilterKeyword.trim().toLowerCase();
+      list = list.filter(s => 
+        (s.text && s.text.toLowerCase().includes(q)) ||
+        (s.category && s.category.toLowerCase().includes(q)) ||
+        (s.email && s.email.toLowerCase().includes(q)) ||
+        (s.userName && s.userName.toLowerCase().includes(q))
+      );
+    }
+
+    // Sort Order
+    if (searchSortOrder === 'newest') {
+      list.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    } else if (searchSortOrder === 'oldest') {
+      list.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0));
+    } else if (searchSortOrder === 'client') {
+      list.sort((a, b) => (a.email || 'Visitor').localeCompare(b.email || 'Visitor'));
+    } else if (searchSortOrder === 'area') {
+      list.sort((a, b) => (a.category || '').localeCompare(b.category || ''));
+    }
+
+    return list;
+  }, [stats, startDate, endDate, searchFilterKeyword, searchSortOrder]);
+
   return (
     <div className="admin-page-container">
       {/* Background Watermark Coat of Arms */}
@@ -517,6 +608,117 @@ export function AdminDashboard() {
             ) : activeTab === 'analytics' ? (
               // TAB 1: ANALYTICS VIEW
               <div className="dashboard-content">
+                {/* GLOBAL DATE & TIME FILTER TOOLBAR */}
+                <div style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '12px',
+                  backgroundColor: 'rgba(0, 0, 0, 0.25)',
+                  border: '1px solid var(--border-light)',
+                  borderRadius: '10px',
+                  padding: '12px 16px',
+                  marginBottom: '20px'
+                }}>
+                  {/* Left: Subview Pill Selector */}
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setActiveAnalyticsSubView('overview')}
+                      style={{
+                        padding: '6px 14px',
+                        fontSize: '0.8rem',
+                        fontWeight: activeAnalyticsSubView === 'overview' ? '600' : '400',
+                        borderRadius: '6px',
+                        border: '1px solid',
+                        borderColor: activeAnalyticsSubView === 'overview' ? 'var(--gold-primary)' : 'var(--border-light)',
+                        backgroundColor: activeAnalyticsSubView === 'overview' ? 'rgba(212, 175, 55, 0.15)' : 'transparent',
+                        color: activeAnalyticsSubView === 'overview' ? 'var(--gold-primary)' : 'var(--text-secondary)',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Overview
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveAnalyticsSubView('visitors')}
+                      style={{
+                        padding: '6px 14px',
+                        fontSize: '0.8rem',
+                        fontWeight: activeAnalyticsSubView === 'visitors' ? '600' : '400',
+                        borderRadius: '6px',
+                        border: '1px solid',
+                        borderColor: activeAnalyticsSubView === 'visitors' ? 'var(--gold-primary)' : 'var(--border-light)',
+                        backgroundColor: activeAnalyticsSubView === 'visitors' ? 'rgba(212, 175, 55, 0.15)' : 'transparent',
+                        color: activeAnalyticsSubView === 'visitors' ? 'var(--gold-primary)' : 'var(--text-secondary)',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      All Visitors Log ({filteredVisits.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setActiveAnalyticsSubView('searches')}
+                      style={{
+                        padding: '6px 14px',
+                        fontSize: '0.8rem',
+                        fontWeight: activeAnalyticsSubView === 'searches' ? '600' : '400',
+                        borderRadius: '6px',
+                        border: '1px solid',
+                        borderColor: activeAnalyticsSubView === 'searches' ? 'var(--gold-primary)' : 'var(--border-light)',
+                        backgroundColor: activeAnalyticsSubView === 'searches' ? 'rgba(212, 175, 55, 0.15)' : 'transparent',
+                        color: activeAnalyticsSubView === 'searches' ? 'var(--gold-primary)' : 'var(--text-secondary)',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      All Searches Log ({filteredSearches.length})
+                    </button>
+                  </div>
+
+                  {/* Right: Date-Time Pickers & Clear */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Calendar size={14} style={{ color: 'var(--gold-primary)' }} />
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>From:</span>
+                      <input
+                        type="date"
+                        className="chat-input"
+                        value={startDate}
+                        onChange={(e) => setStartDate(e.target.value)}
+                        style={{ height: '30px', fontSize: '0.75rem', padding: '0 8px', borderRadius: '4px', width: '130px' }}
+                      />
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>To:</span>
+                      <input
+                        type="date"
+                        className="chat-input"
+                        value={endDate}
+                        onChange={(e) => setEndDate(e.target.value)}
+                        style={{ height: '30px', fontSize: '0.75rem', padding: '0 8px', borderRadius: '4px', width: '130px' }}
+                      />
+                    </div>
+                    {(startDate || endDate) && (
+                      <button
+                        type="button"
+                        onClick={() => { setStartDate(''); setEndDate(''); }}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#f87171',
+                          fontSize: '0.75rem',
+                          cursor: 'pointer',
+                          textDecoration: 'underline',
+                          padding: '0 4px'
+                        }}
+                      >
+                        Reset Dates
+                      </button>
+                    )}
+                  </div>
+                </div>
+
                 {/* Stat cards */}
                 <div className="stats-grid">
                   <div className="stat-card">
@@ -570,70 +772,208 @@ export function AdminDashboard() {
                   </div>
                 </div>
 
-                {/* Analytical Columns */}
-                <div className="stats-columns-layout">
-                  {/* Left Column: Search categories */}
-                  <div className="dashboard-subpanel">
-                    <div className="subpanel-header">
-                      <Tags size={16} style={{ color: 'var(--gold-primary)' }} />
-                      <h4>Searches By Legal Area</h4>
-                    </div>
-                    <div className="subpanel-body">
-                      {(stats.searchGroups || []).length === 0 ? (
-                        <p className="no-data-text">No categorized searches recorded yet.</p>
-                      ) : (
-                        <div className="top-questions-list">
-                          {stats.searchGroups.map((group, index) => {
-                            const maxCount = stats.searchGroups[0]?.count || 1;
-                            const pct = (group.count / maxCount) * 100;
-                            return (
-                              <div key={index} className="question-bar-item">
-                                <div className="question-text-row">
-                                  <span className="category-title-text">{group.category}</span>
-                                  <span className="question-badge">{group.count} search</span>
-                                </div>
-                                {group.latestQuestions?.[0] && (
-                                  <span className="category-latest-text">
-                                    Latest: "{group.latestQuestions[0].text}"
-                                  </span>
-                                )}
-                                <div className="progress-bar-bg">
-                                  <div className="progress-bar-fill" style={{ width: `${pct}%` }}></div>
-                                </div>
-                              </div>
-                            );
-                          })}
+                {/* VIEW 1: OVERVIEW SUBVIEW */}
+                {activeAnalyticsSubView === 'overview' && (
+                  <>
+                    <div className="stats-columns-layout">
+                      {/* Left Column: Search categories */}
+                      <div className="dashboard-subpanel">
+                        <div className="subpanel-header">
+                          <Tags size={16} style={{ color: 'var(--gold-primary)' }} />
+                          <h4>Searches By Legal Area</h4>
                         </div>
-                      )}
-                    </div>
-                  </div>
+                        <div className="subpanel-body">
+                          {(stats.searchGroups || []).length === 0 ? (
+                            <p className="no-data-text">No categorized searches recorded yet.</p>
+                          ) : (
+                            <div className="top-questions-list">
+                              {stats.searchGroups.map((group, index) => {
+                                const maxCount = stats.searchGroups[0]?.count || 1;
+                                const pct = (group.count / maxCount) * 100;
+                                return (
+                                  <div key={index} className="question-bar-item">
+                                    <div className="question-text-row">
+                                      <span className="category-title-text">{group.category}</span>
+                                      <span className="question-badge">{group.count} search</span>
+                                    </div>
+                                    {group.latestQuestions?.[0] && (
+                                      <span className="category-latest-text">
+                                        Latest: "{group.latestQuestions[0].text}"
+                                      </span>
+                                    )}
+                                    <div className="progress-bar-bg">
+                                      <div className="progress-bar-fill" style={{ width: `${pct}%` }}></div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      </div>
 
-                  {/* Right Column: Recent Client Logins */}
-                  <div className="dashboard-subpanel">
-                    <div className="subpanel-header">
-                      <Users size={16} style={{ color: 'var(--gold-primary)' }} />
-                      <h4>Recent Client Logins</h4>
+                      {/* Right Column: Recent Client Logins */}
+                      <div className="dashboard-subpanel">
+                        <div className="subpanel-header">
+                          <Users size={16} style={{ color: 'var(--gold-primary)' }} />
+                          <h4>Registered Clients Activity</h4>
+                        </div>
+                        <div className="subpanel-body" style={{ maxHeight: '320px', overflowY: 'auto' }}>
+                          {stats.registrations.length === 0 ? (
+                            <p className="no-data-text">No user sign-in registrations recorded.</p>
+                          ) : (
+                            <table className="clients-table">
+                              <thead>
+                                <tr>
+                                  <th>Client Email</th>
+                                  <th>Searches</th>
+                                  <th>Top Area</th>
+                                  <th>Last Seen</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {stats.registrations.map((reg, index) => (
+                                  <tr key={index}>
+                                    <td className="email-cell">{reg.email} {reg.subscribed && <span title="Newsletter Opt-in" style={{ cursor: 'help' }}>🔔</span>}</td>
+                                    <td className="time-cell">{reg.questionCount || 0}</td>
+                                    <td className="time-cell">{getTopCategory(reg.categoryCounts)}</td>
+                                    <td className="time-cell">{formatTimestamp(reg.lastSeen || reg.timestamp)}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                    <div className="subpanel-body" style={{ maxHeight: '320px', overflowY: 'auto' }}>
-                      {stats.registrations.length === 0 ? (
-                        <p className="no-data-text">No user sign-in registrations recorded.</p>
+
+                    {/* Overview: Preview of Visitors & Searches */}
+                    <div className="dashboard-subpanel search-log-panel" style={{ height: 'auto', minHeight: '260px' }}>
+                      <div className="subpanel-header" style={{ justifyContent: 'space-between' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <FileText size={16} style={{ color: 'var(--gold-primary)' }} />
+                          <h4>Recent User Searches ({(stats.recentSearches || []).length})</h4>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setActiveAnalyticsSubView('searches')}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: 'var(--gold-primary)',
+                            fontSize: '0.75rem',
+                            cursor: 'pointer',
+                            textDecoration: 'underline'
+                          }}
+                        >
+                          View Full Sorted Search Log →
+                        </button>
+                      </div>
+                      <div className="subpanel-body">
+                        {(stats.recentSearches || []).length === 0 ? (
+                          <p className="no-data-text">No searches recorded yet.</p>
+                        ) : (
+                          <table className="clients-table search-log-table">
+                            <thead>
+                              <tr>
+                                <th>Legal Area</th>
+                                <th>Search Query</th>
+                                <th>User / Email</th>
+                                <th>Date &amp; Time</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {stats.recentSearches.slice(0, 10).map((item, index) => (
+                                <tr key={item.id || index}>
+                                  <td className="time-cell">{item.category || 'General Nigerian Law'}</td>
+                                  <td className="email-cell" style={{ fontWeight: '600', color: 'var(--text-primary)' }}>{item.text}</td>
+                                  <td className="time-cell">{item.email || item.userName || 'Anonymous Visitor'}</td>
+                                  <td className="time-cell">{formatTimestamp(item.timestamp)}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* VIEW 2: ALL VISITORS LOG SUBVIEW */}
+                {activeAnalyticsSubView === 'visitors' && (
+                  <div className="dashboard-subpanel" style={{ height: 'auto', minHeight: '450px' }}>
+                    <div className="subpanel-header" style={{ flexWrap: 'wrap', gap: '10px', justifyContent: 'space-between' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Eye size={18} style={{ color: 'var(--gold-primary)' }} />
+                        <h4>All Visitors &amp; Page Views Log ({filteredVisits.length} recorded)</h4>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        {/* Search keyword filter */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <Search size={14} style={{ color: 'var(--text-muted)' }} />
+                          <input
+                            type="text"
+                            placeholder="Filter IP, email, session..."
+                            className="chat-input"
+                            value={visitorFilterKeyword}
+                            onChange={(e) => setVisitorFilterKeyword(e.target.value)}
+                            style={{ height: '28px', fontSize: '0.75rem', padding: '0 8px', borderRadius: '4px', width: '160px' }}
+                          />
+                        </div>
+
+                        {/* Sort selector */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <ArrowUpDown size={14} style={{ color: 'var(--gold-primary)' }} />
+                          <select
+                            className="chat-input"
+                            value={visitorSortOrder}
+                            onChange={(e) => setVisitorSortOrder(e.target.value)}
+                            style={{ height: '28px', fontSize: '0.75rem', padding: '0 6px', borderRadius: '4px', backgroundColor: 'var(--bg-secondary)' }}
+                          >
+                            <option value="newest">Sort: Newest First</option>
+                            <option value="oldest">Sort: Oldest First</option>
+                            <option value="email">Sort: By User Email</option>
+                            <option value="page">Sort: By Page Path</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="subpanel-body" style={{ maxHeight: '520px', overflowY: 'auto' }}>
+                      {filteredVisits.length === 0 ? (
+                        <p className="no-data-text">
+                          {stats.visits?.length === 0 ? 'No website visitors tracked yet.' : 'No visitors match the selected date or search filter.'}
+                        </p>
                       ) : (
                         <table className="clients-table">
                           <thead>
                             <tr>
-                              <th>Client Email</th>
-                              <th>Searches</th>
-                              <th>Top Area</th>
-                              <th>Last Seen</th>
+                              <th>Date &amp; Time</th>
+                              <th>Visitor Identifier</th>
+                              <th>IP Address</th>
+                              <th>Page Path</th>
+                              <th>Session Reference</th>
                             </tr>
                           </thead>
                           <tbody>
-                            {stats.registrations.map((reg, index) => (
-                              <tr key={index}>
-                                <td className="email-cell">{reg.email} {reg.subscribed && <span title="Newsletter Opt-in" style={{ cursor: 'help' }}>🔔</span>}</td>
-                                <td className="time-cell">{reg.questionCount || 0}</td>
-                                <td className="time-cell">{getTopCategory(reg.categoryCounts)}</td>
-                                <td className="time-cell">{formatTimestamp(reg.lastSeen || reg.timestamp)}</td>
+                            {filteredVisits.map((v, index) => (
+                              <tr key={v.id || index}>
+                                <td className="time-cell" style={{ whiteSpace: 'nowrap' }}>{formatTimestamp(v.timestamp)}</td>
+                                <td className="email-cell">
+                                  {v.email ? (
+                                    <span style={{ color: 'var(--gold-primary)', fontWeight: '600' }}>
+                                      {v.userName ? `${v.userName} (${v.email})` : v.email}
+                                    </span>
+                                  ) : (
+                                    <span style={{ color: 'var(--text-muted)' }}>Anonymous Guest</span>
+                                  )}
+                                </td>
+                                <td className="time-cell" style={{ fontFamily: 'monospace' }}>{v.ip || 'N/A'}</td>
+                                <td className="time-cell" style={{ color: '#4ade80' }}>{v.path || '/'}</td>
+                                <td className="time-cell" style={{ fontFamily: 'monospace', fontSize: '0.7rem' }}>
+                                  {(v.sessionId || '').slice(0, 18)}...
+                                </td>
                               </tr>
                             ))}
                           </tbody>
@@ -641,40 +981,102 @@ export function AdminDashboard() {
                       )}
                     </div>
                   </div>
-                </div>
+                )}
 
-                <div className="dashboard-subpanel search-log-panel">
-                  <div className="subpanel-header">
-                    <FileText size={16} style={{ color: 'var(--gold-primary)' }} />
-                    <h4>Recent Searches</h4>
-                  </div>
-                  <div className="subpanel-body">
-                    {(stats.recentSearches || []).length === 0 ? (
-                      <p className="no-data-text">No searches recorded yet.</p>
-                    ) : (
-                      <table className="clients-table search-log-table">
-                        <thead>
-                          <tr>
-                            <th>Legal Area</th>
-                            <th>Search</th>
-                            <th>Client</th>
-                            <th>Time</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {stats.recentSearches.map((item, index) => (
-                            <tr key={item.id || index}>
-                              <td className="time-cell">{item.category || 'General Nigerian Law'}</td>
-                              <td className="email-cell">{item.text}</td>
-                              <td className="time-cell">{item.email || 'Visitor'}</td>
-                              <td className="time-cell">{formatTimestamp(item.timestamp)}</td>
+                {/* VIEW 3: ALL SEARCHES LOG SUBVIEW */}
+                {activeAnalyticsSubView === 'searches' && (
+                  <div className="dashboard-subpanel" style={{ height: 'auto', minHeight: '450px' }}>
+                    <div className="subpanel-header" style={{ flexWrap: 'wrap', gap: '10px', justifyContent: 'space-between' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Search size={18} style={{ color: 'var(--gold-primary)' }} />
+                        <h4>All Search Queries &amp; Questions Log ({filteredSearches.length} recorded)</h4>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        {/* Search keyword filter */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <Search size={14} style={{ color: 'var(--text-muted)' }} />
+                          <input
+                            type="text"
+                            placeholder="Search queries, legal area..."
+                            className="chat-input"
+                            value={searchFilterKeyword}
+                            onChange={(e) => setSearchFilterKeyword(e.target.value)}
+                            style={{ height: '28px', fontSize: '0.75rem', padding: '0 8px', borderRadius: '4px', width: '170px' }}
+                          />
+                        </div>
+
+                        {/* Sort selector */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <ArrowUpDown size={14} style={{ color: 'var(--gold-primary)' }} />
+                          <select
+                            className="chat-input"
+                            value={searchSortOrder}
+                            onChange={(e) => setSearchSortOrder(e.target.value)}
+                            style={{ height: '28px', fontSize: '0.75rem', padding: '0 6px', borderRadius: '4px', backgroundColor: 'var(--bg-secondary)' }}
+                          >
+                            <option value="newest">Sort: Newest First</option>
+                            <option value="oldest">Sort: Oldest First</option>
+                            <option value="client">Sort: By Client</option>
+                            <option value="area">Sort: By Legal Area</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="subpanel-body" style={{ maxHeight: '520px', overflowY: 'auto' }}>
+                      {filteredSearches.length === 0 ? (
+                        <p className="no-data-text">
+                          {(stats.allSearches || stats.recentSearches || []).length === 0
+                            ? 'No search queries recorded yet.'
+                            : 'No searches match the selected date or keyword filter.'}
+                        </p>
+                      ) : (
+                        <table className="clients-table">
+                          <thead>
+                            <tr>
+                              <th>Date &amp; Time</th>
+                              <th>Legal Area</th>
+                              <th style={{ width: '45%' }}>Exact Question / Search</th>
+                              <th>Client Identifier</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    )}
+                          </thead>
+                          <tbody>
+                            {filteredSearches.map((item, index) => (
+                              <tr key={item.id || index}>
+                                <td className="time-cell" style={{ whiteSpace: 'nowrap' }}>{formatTimestamp(item.timestamp)}</td>
+                                <td className="time-cell">
+                                  <span style={{
+                                    fontSize: '0.7rem',
+                                    padding: '2px 6px',
+                                    borderRadius: '4px',
+                                    backgroundColor: 'rgba(212, 175, 55, 0.1)',
+                                    color: 'var(--gold-primary)',
+                                    fontWeight: '500'
+                                  }}>
+                                    {item.category || 'General Nigerian Law'}
+                                  </span>
+                                </td>
+                                <td className="email-cell" style={{ color: 'var(--text-primary)', fontWeight: '600' }}>
+                                  {item.text}
+                                </td>
+                                <td className="time-cell">
+                                  {item.email ? (
+                                    <span style={{ color: '#60a5fa' }}>{item.email}</span>
+                                  ) : item.userName ? (
+                                    <span>{item.userName}</span>
+                                  ) : (
+                                    <span style={{ color: 'var(--text-muted)' }}>Anonymous Visitor</span>
+                                  )}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             ) : activeTab === 'newsletter' ? (
               // TAB 2: NEWSLETTER DESK VIEW

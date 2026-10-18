@@ -143,7 +143,9 @@ function App() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              sessionId: getAnalyticsSessionId()
+              sessionId: getAnalyticsSessionId(),
+              path: window.location.pathname || '/',
+              referrer: document.referrer || ''
             })
           }, 6000);
           sessionStorage.setItem('nigerian_law_session_tracked', 'true');

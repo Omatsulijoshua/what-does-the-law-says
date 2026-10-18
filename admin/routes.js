@@ -128,6 +128,23 @@ app.post('/api/admin/login', (req, res) => {
     // Historical articles list
     const articles = [...(analyticsData.articles || [])].sort((a, b) => b.timestamp - a.timestamp);
 
+    // Raw visits history sorted latest first
+    const visits = [...(analyticsData.visits || [])]
+      .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))
+      .slice(0, 500)
+      .map(v => ({
+        id: v.id,
+        timestamp: v.timestamp,
+        sessionId: v.sessionId || '',
+        path: v.path || '/',
+        email: v.email || '',
+        userName: v.userName || '',
+        ip: v.ip || '',
+        userAgent: v.userAgent || '',
+        referer: v.referer || '',
+        origin: v.origin || ''
+      }));
+
     return res.json({
       success: true,
       stats: {
@@ -138,8 +155,10 @@ app.post('/api/admin/login', (req, res) => {
         totalSearches,
         searchGroups,
         recentSearches,
+        allSearches: questions.slice(0, 500),
         topQuestions,
-        registrations: registrations.slice(0, 30), // Return last 30 registration activities
+        registrations: registrations.slice(0, 50), // Return last 50 registration activities
+        visits,
         articles: articles // History of published updates
       }
     });

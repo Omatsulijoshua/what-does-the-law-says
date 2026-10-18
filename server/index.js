@@ -925,7 +925,7 @@ function buildAiResearchBasis(question, provider = 'AI') {
 
 // Track page visit (Pinged by client session storage)
 app.post('/api/analytics/visit', (req, res) => {
-  const { sessionId, user, email, userId, name } = req.body || {};
+  const { sessionId, user, email, userId, name, path: pagePath, referrer } = req.body || {};
   const userInfo = normalizeUserPayload(user || { email, userId, name });
   const timestamp = Date.now();
 
@@ -933,12 +933,13 @@ app.post('/api/analytics/visit', (req, res) => {
     id: createAnalyticsId('visit'),
     timestamp,
     sessionId: cleanString(sessionId, 120),
+    path: cleanString(pagePath || req.body?.pathname || '/', 240),
     email: userInfo.email,
     userId: userInfo.id,
     userName: userInfo.name,
     ip: getClientIp(req),
     userAgent: cleanString(req.headers['user-agent'], 500),
-    referer: cleanString(req.headers.referer || req.headers.referrer, 500),
+    referer: cleanString(referrer || req.headers.referer || req.headers.referrer, 500),
     origin: cleanString(req.headers.origin, 240)
   });
 
