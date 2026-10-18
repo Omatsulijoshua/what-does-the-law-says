@@ -286,6 +286,16 @@ function findUnverifiedCaseAuthorities(answerText, verifiedText = '') {
   });
 }
 
+function sanitizeResponseText(text) {
+  if (typeof text !== 'string') return '';
+  return text
+    .replace(/\s*[—―]\s*/g, ', ')
+    .replace(/\s*–\s*/g, ' - ')
+    .replace(/^I am What Does Nigerian Law Say\b[^.\n]*\.[^.\n]*\.\s*/i, '')
+    .replace(/^(?:Hello!?|Hi!?|Greetings!?)\s*I am What Does Nigerian Law Say\b[^.\n]*\.\s*/i, '')
+    .trim();
+}
+
 async function generateVerifiedAiAnswer(prompt, verifiedText = '', preferredProvider = 'auto', fallbackProvider = 'groq', customKeys = {}, customModels = {}) {
   const firstDraft = await generateAiAnswer(prompt, preferredProvider, fallbackProvider, customKeys, customModels);
   const unverifiedAuthorities = findUnverifiedCaseAuthorities(firstDraft.text, verifiedText);
@@ -344,33 +354,36 @@ function buildPrompt(message, localMatch, history) {
   const conversationMemory = buildConversationMemory(message, history);
 
   if (!hasSources) {
-    return `You are What Does Nigerian Law Say?, a careful Nigerian legal information assistant.
-The user may write with spelling mistakes, shorthand, Nigerian English, or informal wording.
+    return `You are What Does Nigerian Law Say?, a smart, highly knowledgeable Nigerian legal information assistant.
+The user may write with spelling mistakes, shorthand, Nigerian English, Nigerian Pidgin, or informal wording.
 
 User's question:
 "${message}"
 
 ${conversationMemory}
 
-Answer intelligently using your knowledge of Nigerian law. If the question concerns Nigerian law, explain the likely legal position, practical steps, and risks. If a legal point depends on state law, customary law, court documents, or facts not provided, say so clearly and ask for the missing fact naturally.
+Answer with sharp legal intelligence, practical clarity, and authority using your knowledge of Nigerian law. Explain the direct legal position, statutory provisions, practical steps, and legal consequences immediately.
 
 ${jurisdictionRule}
 
 Rules:
-1. Correct the user's spelling and infer the likely meaning silently.
-2. Be transparent when no supporting source is available.
-3. Do not invent exact deadlines, penalties, court rules, or section numbers if you are not sure.
-4. Use clear headings and short paragraphs.
-5. Apply this quotation rule:
+1. Provide a direct, intelligent, and insightful answer immediately. Do NOT begin with canned introductions like "I am What Does Nigerian Law Say..." or reciting disclaimers.
+2. NEVER use em dashes ("—") or en dashes ("–") in your response. Use standard commas, colons, parentheses, or clear sentences instead.
+3. Correct the user's spelling and infer the likely meaning silently.
+4. Fluently understand Nigerian Pidgin, street terms, and realistic Nigerian situations (e.g., questions about "settling police", "police bail percentage", "landlord locking house", "arrest without warrant"). Address both statutory law and practical realities with astute legal acumen.
+5. When organizing your answer, use bold headers (like **Applicable Law:**, **Legal Analysis:**) instead of markdown heading hashes like '###'.
+6. Be transparent when no supporting source is available.
+7. Do not invent exact deadlines, penalties, court rules, or section numbers if you are not sure.
+8. Apply this quotation rule:
 ${quotationRule}
-6. Apply this public examples rule:
+9. Apply this public examples rule:
 ${verifiedExamplesRule}
-7. When no retrieved exact legal text is available, do not fabricate statutory quotations, chapter numbers, page numbers, years, penalties, case examples, or deadlines.
-8. Always end with a short final summary headed exactly **In conclusion:** that directly answers the question.`;
+10. When no retrieved exact legal text is available, do not fabricate statutory quotations, chapter numbers, page numbers, years, penalties, case examples, or deadlines.
+11. Always end with a short final summary headed exactly **In conclusion:** that directly answers the question.`;
   }
 
-  return `You are What Does Nigerian Law Say?, a careful Nigerian legal information assistant.
-The user may write with spelling mistakes, shorthand, Nigerian English, or informal wording.
+  return `You are What Does Nigerian Law Say?, a smart, highly knowledgeable Nigerian legal information assistant.
+The user may write with spelling mistakes, shorthand, Nigerian English, Nigerian Pidgin, or informal wording.
 Use the retrieved Nigerian legal materials below as your grounding, then apply general Nigerian legal knowledge where helpful.
 
 Retrieved Nigerian legal materials:
@@ -386,17 +399,21 @@ ${conversationMemory}
 ${jurisdictionRule}
 
 Instructions:
-1. Correct the user's spelling and infer the likely meaning silently.
-2. Apply this quotation rule:
+1. Provide a direct, smart, and thorough answer immediately. Do NOT start with canned introductions like "I am What Does Nigerian Law Say..." or reciting disclaimers.
+2. NEVER use em dashes ("—") or en dashes ("–") in your response. Use standard commas, colons, parentheses, or clear sentences instead.
+3. Correct the user's spelling and infer the likely meaning silently.
+4. Fluently understand Nigerian Pidgin, street phrasing, and practical Nigerian realities. Address both statutory law and practical realities with high legal acumen.
+5. When organizing your answer, use bold headers (like **What The Law Says:**, **Key Points:**) instead of markdown heading hashes like '###'.
+6. Apply this quotation rule:
 ${quotationRule}
-3. Apply this public examples rule:
+7. Apply this public examples rule:
 ${verifiedExamplesRule}
-4. Explain the answer naturally, as a smart Nigerian-law assistant, not as a database search result.
-5. Cite or name the most relevant source, section, case, or principle from the retrieved materials where available.
-6. If the retrieved materials do not fully cover the answer, supplement carefully with general Nigerian legal principles and say when a fact depends on state/custom/court documents, but do not add public examples or case names unless verified from the retrieved materials.
-7. State source uncertainty naturally and clearly.
-8. Do not invent exact deadlines, penalties, court rules, section numbers, case examples, or locus classicus claims if they are not in the materials or you are not sure.
-9. Always end with a short final summary headed exactly **In conclusion:** that directly answers the question and gives the safest next step.`;
+8. Explain the answer naturally, as an astute, smart Nigerian-law assistant, not as a database search result.
+9. Cite or name the most relevant source, section, case, or principle from the retrieved materials where available.
+10. If the retrieved materials do not fully cover the answer, supplement carefully with general Nigerian legal principles and say when a fact depends on state/custom/court documents, but do not add public examples or case names unless verified from the retrieved materials.
+11. State source uncertainty naturally and clearly.
+12. Do not invent exact deadlines, penalties, court rules, section numbers, case examples, or locus classicus claims if they are not in the materials or you are not sure.
+13. Always end with a short final summary headed exactly **In conclusion:** that directly answers the question and gives the safest next step.`;
 }
 
 async function callGemini(prompt, modelName, apiKey) {
@@ -681,7 +698,7 @@ export default async function handler(req, res) {
     const researchBasis = hasVerifiedSources ? null : buildAiResearchBasis(cleanMessage, providerLabel);
 
     return res.status(200).json({
-      answerText: generated.text,
+      answerText: sanitizeResponseText(generated.text),
       sources: hasVerifiedSources ? localMatch.sources : researchBasis.sources,
       reasoning: hasVerifiedSources ? (localMatch.reasoning || []) : researchBasis.reasoning,
       engine: generated.provider || 'ai',

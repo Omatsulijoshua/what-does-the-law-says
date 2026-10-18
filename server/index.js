@@ -368,10 +368,10 @@ app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
 // Multi-Provider AI Engine (Gemini, Groq Fallback, OpenAI)
 const DEFAULT_OPENAI_MODEL = 'gpt-4o-mini';
-const DEFAULT_GROQ_MODEL = 'openai/gpt-oss-120b';
-const DEFAULT_GROQ_FALLBACK_MODEL = 'qwen/qwen3.8-27b';
-const DEFAULT_GEMINI_MODEL = 'gemini-3.5-flash-lite';
-const DEFAULT_GEMINI_FALLBACK_MODEL = 'gemini-3.1-flash-lite';
+const DEFAULT_GROQ_MODEL = 'llama-3.3-70b-versatile';
+const DEFAULT_GROQ_FALLBACK_MODEL = 'openai/gpt-oss-120b';
+const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash';
+const DEFAULT_GEMINI_FALLBACK_MODEL = 'gemini-3.5-flash';
 
 function normalizeApiKey(value) {
   return (value || '').trim().replace(/^['"]|['"]$/g, '').trim();
@@ -505,10 +505,11 @@ async function callGeminiProvider(prompt, customKeys = {}, customModels = {}) {
   const modelNames = [
     customModels?.geminiModel || process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL,
     customModels?.geminiFallbackModel || process.env.GEMINI_FALLBACK_MODEL || DEFAULT_GEMINI_FALLBACK_MODEL,
+    'gemini-2.5-flash',
+    'gemini-3.5-flash',
+    'gemini-3.8-flash',
     'gemini-3.5-flash-lite',
     'gemini-3.1-flash-lite',
-    'gemini-3.8-flash',
-    'gemini-3.5-flash',
     'gemini-3.7-flash'
   ].filter(Boolean);
 
@@ -859,6 +860,16 @@ function findUnverifiedCaseAuthorities(answerText, verifiedText = '') {
   });
 }
 
+function sanitizeResponseText(text) {
+  if (typeof text !== 'string') return '';
+  return text
+    .replace(/\s*[—―]\s*/g, ', ')
+    .replace(/\s*–\s*/g, ' - ')
+    .replace(/^I am What Does Nigerian Law Say\b[^.\n]*\.[^.\n]*\.\s*/i, '')
+    .replace(/^(?:Hello!?|Hi!?|Greetings!?)\s*I am What Does Nigerian Law Say\b[^.\n]*\.\s*/i, '')
+    .trim();
+}
+
 async function generateVerifiedAiAnswer(prompt, verifiedText = '', preferredProvider = 'auto', fallbackProvider = 'groq', customKeys = {}, customModels = {}) {
   const firstDraft = await generateAiAnswer(prompt, preferredProvider, fallbackProvider, customKeys, customModels);
   const unverifiedAuthorities = findUnverifiedCaseAuthorities(firstDraft.text, verifiedText);
@@ -1035,30 +1046,31 @@ app.post('/api/chat', async (req, res) => {
   let verifiedText;
 
   if (!hasSources) {
-    systemPrompt = `You are What Does Nigerian Law Say?, a Nigerian legal information assistant.
+    systemPrompt = `You are What Does Nigerian Law Say?, a smart, highly knowledgeable Nigerian legal information assistant.
 The user sent a message or asked a question: "${cleanMessage}".
 
 ${conversationMemory}
 
-Respond as a legal information assistant in plain English:
-1. If the message is a general greeting or introduction, introduce yourself and explain what you can do (e.g., answering questions on the Constitution, Land Use Act, Criminal Code, and Electoral Act 2022).
-2. If the user is asking a specific legal question (e.g., about a car accident, vehicle towing, contracts, family law, etc.), please answer their question directly, thoroughly, and professionally using your general knowledge of the Nigerian Legal System (e.g., relevant tort principles, state traffic laws, etc.).
-3. Keep the tone helpful, professional, and authoritative.
-4. Apply this rule in every answer:
+Respond with sharp legal intelligence, practical clarity, and authority in plain English:
+1. Provide a direct, intelligent, and legally insightful answer immediately. Do NOT start with robotic canned introductions like "I am What Does Nigerian Law Say..." or reciting disclaimers.
+2. NEVER use em dashes ("—") or en dashes ("–") in your response. Use standard commas, colons, parentheses, or clean sentences instead.
+3. Fluently understand Nigerian Pidgin, street phrasing, slang, and real-world Nigerian situations (e.g. questions about "settling police", "bail percentage", "landlord locking door", "arrest without warrant"). Address both the statutory law (e.g. Police Act 2020, Criminal Code / Penal Code, ACJA) and practical realities with astute legal acumen.
+4. When organizing your answer, use bold headers (like **Applicable Law:**, **Legal Analysis:**) instead of markdown heading hashes like '###'.
+5. Apply this rule in every answer:
 ${jurisdictionRule}
-5. Apply this quotation rule:
+6. Apply this quotation rule:
 ${quotationRule}
-6. Apply this public examples rule:
+7. Apply this public examples rule:
 ${verifiedExamplesRule}
-7. When no retrieved exact legal text is available, do not fabricate statutory quotations, chapter numbers, page numbers, years, penalties, case examples, or deadlines.
-8. Always end with a short final summary headed exactly **In conclusion:** that directly answers the user's question and gives the safest next step.
-9. CRITICAL: Do NOT use robotic phrases such as "Based on the provided context...", "According to the context...", "There is no information in the context...", "The database does not contain...". Be transparent when a supporting source or current amendment has not been checked. Explain naturally as a legal information assistant.`;
+8. When no retrieved exact legal text is available, do not fabricate statutory quotations, chapter numbers, page numbers, years, penalties, case examples, or deadlines.
+9. Always end with a short final summary headed exactly **In conclusion:** that directly answers the user's question and gives the safest next step.
+10. CRITICAL: Do NOT use robotic phrases such as "Based on the provided context...", "According to the context...", "There is no information in the context...", "The database does not contain...". Be transparent when a supporting source or current amendment has not been checked. Explain naturally and smartly as an experienced legal assistant.`;
     verifiedText = '';
   } else {
     const contextText = formatLegalContext(localMatch.sources);
 
-    systemPrompt = `You are What Does Nigerian Law Say?, a Nigerian legal information assistant.
-Your job is to explain the law to the user in a professional, clear, and objective tone.
+    systemPrompt = `You are What Does Nigerian Law Say?, a smart, highly knowledgeable Nigerian legal information assistant.
+Your job is to explain the law to the user with high legal intelligence, clarity, and authority.
 You must ground your explanation primarily in the provided Nigerian legal sections below.
 
 Nigerian legal summaries and reading references:
@@ -1071,19 +1083,21 @@ Current User's Question: "${cleanMessage}"
 ${conversationMemory}
 
 Instructions:
-1. Explain how these specific sections apply to the user's question.
-2. Apply this quotation rule:
+1. Provide a direct, smart, and thorough answer immediately. Do NOT start with robotic canned introductions like "I am What Does Nigerian Law Say..." or reciting disclaimers.
+2. NEVER use em dashes ("—") or en dashes ("–") in your response. Use standard commas, colons, parentheses, or clean sentences instead.
+3. Fluently understand Nigerian Pidgin, street phrasing, and practical Nigerian realities. Address both the statutory law and practical realities with high legal acumen.
+4. When organizing your answer, use bold headers (like **What The Law Says:**, **Key Points:**) instead of markdown heading hashes like '###'.
+5. Explain how these specific sections apply to the user's question.
+6. Apply this quotation rule:
 ${quotationRule}
-3. Apply this public examples rule:
+7. Apply this public examples rule:
 ${verifiedExamplesRule}
-4. Keep the explanation readable and highly structured. Use paragraphs and bullet points.
-5. Maintain a professional, objective, and authoritative tone suitable for legal assistance.
-6. Apply this rule in every answer:
+8. Apply this rule in every answer:
 ${jurisdictionRule}
-7. If the provided legal sections do not fully cover the answer, you may supplement it with general Nigerian legal principles, but do not add public examples or case names unless verified from the retrieved materials.
-8. Do not invent procedural dates, waiting periods, filing deadlines, penalties, case examples, court requirements, or locus classicus claims unless they are present in the provided sources. If a detail is not in the sources, say that the user should confirm it from the court record or current rules.
-9. Always end with a short final summary headed exactly **In conclusion:** that directly answers the user's question and gives the safest next step.
-10. CRITICAL: Do NOT use robotic phrases such as "Based on the provided context...", "According to the context...", "There is no information in the context...", "The database does not contain...". Be transparent when a supporting source or current amendment has not been checked. Explain naturally as a legal information assistant.`;
+9. If the provided legal sections do not fully cover the answer, you may supplement it with general Nigerian legal principles, but do not add public examples or case names unless verified from the retrieved materials.
+10. Do not invent procedural dates, waiting periods, filing deadlines, penalties, case examples, court requirements, or locus classicus claims unless they are present in the provided sources. If a detail is not in the sources, say that the user should confirm it from the court record or current rules.
+11. Always end with a short final summary headed exactly **In conclusion:** that directly answers the user's question and gives the safest next step.
+12. CRITICAL: Do NOT use robotic phrases such as "Based on the provided context...", "According to the context...", "There is no information in the context...", "The database does not contain...". Be transparent when a supporting source or current amendment has not been checked. Explain naturally and smartly as an experienced legal assistant.`;
     verifiedText = contextText;
   }
 
@@ -1091,9 +1105,10 @@ ${jurisdictionRule}
     const generated = await generateVerifiedAiAnswer(systemPrompt, verifiedText, preferredProvider, safeFallbackProvider, customKeys, customModels);
     const providerLabel = generated.provider ? generated.provider.toUpperCase() : 'AI';
     const researchBasis = hasSources ? null : buildAiResearchBasis(cleanMessage, providerLabel);
+    const cleanAnswer = sanitizeResponseText(generated.text);
 
     return res.json({
-      answerText: generated.text,
+      answerText: cleanAnswer,
       sources: hasSources ? localMatch.sources : researchBasis.sources,
       reasoning: hasSources ? localMatch.reasoning : researchBasis.reasoning,
       engine: generated.provider || 'ai',
