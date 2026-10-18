@@ -137,7 +137,7 @@ export async function stopAudioRecordingAndTranscribe() {
         const audioBase64 = await blobToBase64(audioBlob);
 
         const endpoint = getApiEndpoint('/api/transcribe');
-        const customDeepgramKey = localStorage.getItem('nigerian_law_deepgram_key') || '';
+        const customDeepgramKey = localStorage.getItem('nigerian_law_deepgram_key') || '5f0fa4353f0bbeab22ba8e3185657eddcae995c0';
         const headers = { 'Content-Type': 'application/json' };
         if (customDeepgramKey) {
           headers['x-deepgram-key'] = customDeepgramKey;
