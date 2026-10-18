@@ -5,7 +5,8 @@
   <path fill="url(#bg)" d="M0 0h1200v630H0z"/>
   <rect x="28" y="28" width="1144" height="574" rx="24" fill="none" stroke="#c9a45b" stroke-opacity=".4"/>
   <circle cx="1000" cy="220" r="250" fill="none" stroke="#c9a45b" stroke-opacity=".12" stroke-width="60"/>
-  <g transform="translate(88 76)" fill="none" stroke="#e4c47e" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="M48 0v90M24 90h48M10 22h76M16 22 0 58h32L16 22Zm64 0L64 58h32L80 22Z"/></g>
+  <g transform="translate(88 76)"><path fill="#008751" d="M0 0h132v66H0z"/><path fill="#fff" d="M44 0h44v66H44z"/></g>
+  <g transform="translate(252 70)" fill="none" stroke="#e4c47e" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><path d="m0 30 40-24 40 24H0ZM10 40v36m20-36v36m20-36v36m20-36v36M0 84h80M-5 94h90"/></g>
   <text x="88" y="250" fill="#b8cec0" font-family="Arial,sans-serif" font-size="24" letter-spacing="5">NIGERIAN LAW, IN PLAIN ENGLISH</text>
   <text x="82" y="342" fill="#f4f0e5" font-family="Georgia,serif" font-size="76" font-weight="bold">What Does</text>
   <text x="82" y="432" fill="#e4c47e" font-family="Georgia,serif" font-size="76" font-weight="bold">Nigerian Law Say?</text>

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { BrandEmblems } from './components/BrandEmblems';
 import { SavedChatsPanel } from './components/SavedChatsPanel';
 import { ChatAssistant } from './components/ChatAssistant';
 import { AuthManager } from './components/AuthManager';
@@ -558,7 +559,7 @@ function App() {
             >
               <Menu size={20} />
             </button>
-            <img className="brand-icon" src="/brand/law-symbol.svg" alt="" width="32" height="32" />
+            <BrandEmblems compact />
             <div className="brand-name">What Does<br /><span>Nigerian Law Say?</span></div>
           </div>
 

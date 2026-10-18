@@ -1,0 +1,17 @@
+.national-emblems { display: inline-flex; align-items: center; justify-content: center; gap: 14px; flex-shrink: 0; }
+.national-emblems img { display: block; object-fit: contain; }
+.national-emblems__coat { width: 78px; height: 66px; padding: 3px; background: #fff; border-radius: 10px; }
+.national-emblems__companions { display: flex; flex-direction: column; align-items: center; gap: 7px; }
+.national-emblems__flag { width: 40px; height: 20px; border: 1px solid #cbd8ce; border-radius: 2px; }
+.national-emblems__court { width: 36px; height: 36px; }
+.national-emblems--compact { gap: 5px; }
+.national-emblems--compact .national-emblems__coat { width: 42px; height: 38px; padding: 2px; border-radius: 6px; }
+.national-emblems--compact .national-emblems__companions { gap: 3px; }
+.national-emblems--compact .national-emblems__flag { width: 22px; height: 11px; }
+.national-emblems--compact .national-emblems__court { width: 22px; height: 22px; }
+@media (max-width: 768px) {
+  .national-emblems--compact .national-emblems__coat { width: 32px; height: 32px; }
+  .national-emblems--compact .national-emblems__flag { width: 18px; height: 9px; }
+  .national-emblems--compact .national-emblems__court { width: 18px; height: 18px; }
+  .national-emblems--compact { gap: 4px; }
+}

@@ -105,7 +105,7 @@ body {
   height: 55vw;
   max-width: 600px;
   max-height: 600px;
-  background-image: url('/brand/law-symbol.svg');
+  background-image: url('/brand/court-symbol.svg');
   background-size: contain;
   background-position: center;
   background-repeat: no-repeat;
@@ -572,11 +572,9 @@ body {
 }
 
 .welcome-logo {
-  width: 90px;
-  height: 90px;
-  margin-bottom: 24px;
-  opacity: 0.85;
-  filter: drop-shadow(0 0 16px var(--green-glow));
+  width: auto;
+  height: 66px;
+  margin-bottom: 20px;
 }
 
 .law-brand-footer {

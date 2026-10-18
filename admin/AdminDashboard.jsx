@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { ShieldCheck, LogIn, RefreshCw, LogOut, Users, Eye, EyeOff, FileText, Calendar, Clock, X, Send, BookOpen, Search, Tags, Bot, Key, CheckCircle2, AlertCircle } from 'lucide-react';
+import { LogIn, RefreshCw, LogOut, Users, Eye, EyeOff, FileText, Calendar, Clock, X, Send, BookOpen, Search, Tags, Bot, Key, CheckCircle2, AlertCircle } from 'lucide-react';
+import { BrandEmblems } from '../src/components/BrandEmblems';
 import { fetchWithTimeout, getApiUrl, getApiEndpoint } from '../src/utils/api';
 
 export function AdminDashboard() {
@@ -305,7 +306,7 @@ export function AdminDashboard() {
           <div className="admin-page-centered-login">
             <div className="admin-login-view">
             <div className="brand" style={{ justifyContent: 'center', marginBottom: '16px' }}>
-              <ShieldCheck size={40} style={{ color: 'var(--gold-primary)' }} />
+              <BrandEmblems />
             </div>
             <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '1.4rem', textTransform: 'capitalize', textAlign: 'center', marginBottom: '8px' }}>
               Nigerian Law Admin Desk
@@ -393,7 +394,7 @@ export function AdminDashboard() {
           <div className="admin-dashboard-view">
             <header className="dashboard-header" style={{ marginBottom: '10px', paddingBottom: '10px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <ShieldCheck size={24} style={{ color: 'var(--gold-primary)' }} />
+                <BrandEmblems compact />
                 <h3 style={{ fontFamily: 'var(--font-serif)', fontSize: '1.35rem', color: 'var(--text-primary)' }}>
                   Admin Dashboard
                 </h3>

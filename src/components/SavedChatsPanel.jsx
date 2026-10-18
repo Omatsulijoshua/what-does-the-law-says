@@ -1,4 +1,5 @@
 import { MessageSquare, Plus, Trash2, History, Lock, Newspaper, X } from 'lucide-react';
+import { BrandEmblems } from './BrandEmblems';
 
 export function SavedChatsPanel({ 
   chats = [], 
@@ -141,7 +142,7 @@ export function SavedChatsPanel({
       {/* Footer Branding */}
       <div className="sources-footer" style={{ flexDirection: 'column', gap: '14px', padding: '24px 20px' }}>
         <div className="law-brand-footer">
-          <img src="/brand/law-symbol.svg" alt="" width="48" height="48" />
+          <BrandEmblems />
           <span>What Does<br /><strong>Nigerian Law Say?</strong></span>
           <small>Know your rights. Understand the law.</small>
         </div>
