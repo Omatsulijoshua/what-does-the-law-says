@@ -1,6 +1,6 @@
 import { registerAdminRoutes } from '../admin/routes.js';
 import { jurisdictionRule, quotationRule, formatLegalContext } from '../src/utils/legalPolicy.js';
-/* global process */
+/* global process, Buffer */
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -31,7 +31,7 @@ if (process.env.NODE_ENV !== 'production') allowedOrigins.push('http://localhost
 app.use(cors({
   origin(origin, callback) { callback(null, !origin || allowedOrigins.includes(origin)); }
 }));
-app.use(express.json());
+app.use(express.json({ limit: '25mb' }));
 
 // In-memory analytics database state
 let analyticsData = {
@@ -987,6 +987,62 @@ app.post('/api/analytics/subscribe', (req, res) => {
 app.get('/api/articles', (req, res) => {
   const list = [...(analyticsData.articles || [])].sort((a, b) => b.timestamp - a.timestamp);
   res.json({ success: true, articles: list });
+});
+
+// Deepgram Voice Speech-to-Text Transcription Endpoint
+app.post('/api/transcribe', async (req, res) => {
+  try {
+    const apiKey = normalizeApiKey(req.headers['x-deepgram-key'] || process.env.DEEPGRAM_API_KEY);
+    if (!apiKey) {
+      return res.status(503).json({
+        error: 'Deepgram API key is not configured. Please set DEEPGRAM_API_KEY in server environment settings.'
+      });
+    }
+
+    let audioBuffer;
+    let mimeType = 'audio/webm';
+
+    if (req.body && req.body.audioBase64) {
+      audioBuffer = Buffer.from(req.body.audioBase64, 'base64');
+      if (req.body.mimeType) mimeType = req.body.mimeType;
+    } else if (Buffer.isBuffer(req.body)) {
+      audioBuffer = req.body;
+      if (req.headers['content-type']) mimeType = req.headers['content-type'];
+    }
+
+    if (!audioBuffer || audioBuffer.length === 0) {
+      return res.status(400).json({ error: 'Audio payload (audioBase64) is required.' });
+    }
+
+    const deepgramUrl = 'https://api.deepgram.com/v1/listen?model=nova-2&smart_format=true&punctuate=true';
+    const dgResponse = await fetch(deepgramUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Token ${apiKey}`,
+        'Content-Type': mimeType
+      },
+      body: audioBuffer
+    });
+
+    const dgData = await dgResponse.json().catch(() => ({}));
+
+    if (!dgResponse.ok) {
+      const errMsg = dgData?.err_msg || dgData?.message || `Deepgram returned status ${dgResponse.status}`;
+      return res.status(dgResponse.status).json({ error: errMsg });
+    }
+
+    const transcript = dgData?.results?.channels?.[0]?.alternatives?.[0]?.transcript || '';
+    const confidence = dgData?.results?.channels?.[0]?.alternatives?.[0]?.confidence || 0;
+
+    return res.json({
+      transcript,
+      confidence,
+      model: 'nova-2'
+    });
+  } catch (err) {
+    console.error('Deepgram transcription error:', err);
+    return res.status(500).json({ error: err.message || 'Transcription failed' });
+  }
 });
 
 // Chat API Endpoint with Multi-Provider Support and Fallback

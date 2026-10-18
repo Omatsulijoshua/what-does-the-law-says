@@ -2175,3 +2175,177 @@ body {
     font-size: 0.82rem;
   }
 }
+
+/* Voice Chat & Deepgram STT Controls */
+.mic-btn {
+  color: var(--green-accent);
+  transition: var(--transition-smooth);
+}
+
+.mic-btn:hover {
+  background-color: rgba(22, 101, 52, 0.15);
+  color: #22c55e;
+}
+
+.input-wrapper.recording-active {
+  border-color: #ef4444;
+  box-shadow: 0 0 16px rgba(239, 68, 68, 0.25);
+  background-color: rgba(239, 68, 68, 0.04);
+}
+
+.voice-recording-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 6px 4px;
+}
+
+.recording-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.recording-dot-pulse {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background-color: #ef4444;
+  box-shadow: 0 0 8px #ef4444;
+  animation: pulseRecording 1.2s infinite ease-in-out;
+}
+
+@keyframes pulseRecording {
+  0% { transform: scale(0.9); opacity: 0.7; }
+  50% { transform: scale(1.3); opacity: 1; box-shadow: 0 0 14px #ef4444; }
+  100% { transform: scale(0.9); opacity: 0.7; }
+}
+
+.recording-timer {
+  font-family: monospace;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #ef4444;
+}
+
+.recording-text {
+  font-size: 0.84rem;
+  color: var(--text-secondary);
+}
+
+.recording-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.voice-cancel-btn {
+  color: #ef4444;
+}
+
+.voice-cancel-btn:hover {
+  background-color: rgba(239, 68, 68, 0.15);
+}
+
+.voice-finish-btn {
+  color: var(--text-primary);
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.voice-finish-btn:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+.voice-transcribing-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 8px;
+  color: var(--green-accent);
+  font-size: 0.88rem;
+  font-weight: 500;
+  width: 100%;
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.voice-error-toast {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 800px;
+  margin: 0 auto 8px;
+  padding: 8px 14px;
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+:root[data-theme="dark"] .voice-error-toast {
+  background-color: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #fca5a5;
+}
+
+.voice-error-toast button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: inherit;
+  display: flex;
+  align-items: center;
+  padding: 2px;
+}
+
+/* Audio playback button on assistant messages */
+.message-speaker-row {
+  border-top: 1px solid var(--border-light);
+  padding-top: 6px;
+  margin-top: 8px;
+}
+
+.message-audio-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: transparent;
+  border: 1px solid var(--border-light);
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+}
+
+.message-audio-btn:hover {
+  color: var(--green-accent);
+  border-color: var(--green-accent);
+  background-color: rgba(22, 101, 52, 0.08);
+}
+
+.message-audio-btn.is-speaking {
+  color: #ef4444;
+  border-color: #ef4444;
+  background-color: rgba(239, 68, 68, 0.08);
+  font-weight: 600;
+  animation: pulseSpeech 1.5s infinite;
+}
+
+@keyframes pulseSpeech {
+  0% { opacity: 0.8; }
+  50% { opacity: 1; }
+  100% { opacity: 0.8; }
+}
+

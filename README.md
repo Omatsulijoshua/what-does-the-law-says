@@ -30,6 +30,7 @@
   - Cybercrimes (Prohibition, Prevention, etc.) Act
   - Labour Act & Tenancy Laws (e.g., Lagos State Tenancy Law)
   - Companies and Allied Matters Act (CAMA 2020)
+- **🎙️ Voice Chat & Speech-to-Text (Deepgram Nova-2):** Hands-free voice query input powered by Deepgram Nova-2 model with intelligent punctuation, live recording feedback, and built-in Text-to-Speech (TTS) audio playback for legal responses.
 - **🔒 Google Authentication:** Secure user authentication powered by Firebase Auth for seamless login and personalized experience.
 - **💬 Conversation History & Management:** Save, manage, export, and revisit consultation history with local persistence and migration support.
 - **🛡️ Secure Admin Portal:** Dedicated administrative dashboard at `/admin/` for content management, viewing analytics, managing articles, and monitoring AI provider metrics.
@@ -59,6 +60,7 @@
 - **Runtime:** [Node.js](https://nodejs.org/) (native Node test runner & ES Modules)
 - **Framework:** [Express 4](https://expressjs.com/)
 - **AI Integration:** `@google/generative-ai` (Gemini 2.5/3.5/3.8 Flash), Groq API, OpenAI API
+- **Speech-to-Text:** [Deepgram API](https://deepgram.com/) (Nova-2 model with smart formatting)
 - **Deployment & Hosting:** Vercel (Frontend SPA & Admin) + Render (Express Web Service)
 
 ---
@@ -71,6 +73,9 @@ what-does-the-law-says/
 │   ├── AdminDashboard.jsx  # Admin analytics, publishing & AI configuration
 │   ├── index.html          # Admin entry page
 │   └── routes.js           # Express admin endpoints
+├── api/                    # Vercel Serverless Functions (/api/chat, /api/transcribe)
+│   ├── chat.js             # Serverless multi-provider AI chat handler
+│   └── transcribe.js       # Serverless Deepgram voice transcription endpoint
 ├── public/                 # Static assets & brand emblems
 │   ├── brand/              # Vector logos, icons, and social share cards
 │   └── favicon.ico
@@ -82,7 +87,7 @@ what-does-the-law-says/
 │   ├── components/         # ChatAssistant, DocumentExplorer, AuthManager, etc.
 │   ├── config/             # Firebase and client configuration
 │   ├── data/               # Curated legal datasets & statutory references
-│   ├── utils/              # API clients, search indexes, policy checkers
+│   ├── utils/              # API clients, voiceService, search indexes, policy checkers
 │   ├── App.jsx             # Main application orchestrator
 │   └── main.jsx            # React root mount point
 ├── tests/                  # Integration and unit tests (Node test runner)
@@ -142,6 +147,7 @@ Configure your AI provider keys and admin credentials:
 ```env
 GEMINI_API_KEY=your_gemini_api_key_here
 GEMINI_MODEL=gemini-2.5-flash
+DEEPGRAM_API_KEY=your_deepgram_api_key_here
 PORT=5000
 NODE_ENV=development
 ADMIN_EMAIL=admin@example.com
