@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: what-does-nigeria-law-says-api
+    runtime: node
+    plan: free
+    region: frankfurt
+    buildCommand: npm ci --prefix server --omit=dev
+    startCommand: node server/index.js
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "24"
+      - key: FRONTEND_ORIGINS
+        value: https://what-does-nigeria-law-says.thispage.xyz,https://what-does-nigerian-law-say.vercel.app
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false

@@ -1,0 +1,43 @@
+const DEFAULT_PRODUCTION_API_URL = typeof window !== 'undefined' ? window.location.origin : '';
+
+export function getApiUrl() {
+  const configuredUrl = (
+    import.meta.env.VITE_PRODUCTION_API_URL ||
+    import.meta.env.VITE_API_URL ||
+    (import.meta.env.PROD ? DEFAULT_PRODUCTION_API_URL : 'http://localhost:5000')
+  ).trim().replace(/\/+$/, '');
+  const isLocalUrl = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i.test(configuredUrl);
+
+  if (import.meta.env.PROD && isLocalUrl) {
+    return DEFAULT_PRODUCTION_API_URL;
+  }
+
+  return configuredUrl || (import.meta.env.PROD ? DEFAULT_PRODUCTION_API_URL : '');
+}
+
+export function getApiEndpoint(path, options = {}) {
+  if (options.sameOrigin) {
+    return path;
+  }
+
+  const apiUrl = getApiUrl();
+  if (apiUrl) {
+    return `${apiUrl}${path}`;
+  }
+
+  return path;
+}
+
+export async function fetchWithTimeout(url, options = {}, timeoutMs = 60000) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(url, {
+      ...options,
+      signal: controller.signal
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}

@@ -1,0 +1,703 @@
+import { jurisdictionRule, quotationRule, formatLegalContext } from '../src/utils/legalPolicy.js';
+/* global Buffer, process */
+import { searchLegalDatabase } from '../src/utils/legalSearch.js';
+
+const DEFAULT_OPENAI_MODEL = 'gpt-4o-mini';
+const DEFAULT_GROQ_MODEL = 'openai/gpt-oss-120b';
+const DEFAULT_GROQ_FALLBACK_MODEL = 'qwen/qwen3.8-27b';
+const DEFAULT_GEMINI_MODEL = 'gemini-3.5-flash-lite';
+const DEFAULT_GEMINI_FALLBACK_MODEL = 'gemini-3.1-flash-lite';
+const API_REVISION = 'multi-provider-ai-v2';
+
+function normalizeApiKey(value) {
+  return (value || '').trim().replace(/^['"]|['"]$/g, '').trim();
+}
+
+function isConfigured(value) {
+  return normalizeApiKey(value).length > 0;
+}
+
+function getProviderDiagnostics(customKeys = {}) {
+  const preferredProvider = normalizeProvider(process.env.AI_PROVIDER || 'auto');
+  const geminiKey = normalizeApiKey(customKeys?.geminiApiKey || customKeys?.geminiKey || process.env.GEMINI_API_KEY);
+  const groqKey = normalizeApiKey(customKeys?.groqApiKey || customKeys?.groqKey || process.env.GROQ_API_KEY);
+  const openaiKey = normalizeApiKey(customKeys?.openaiApiKey || customKeys?.openaiKey || process.env.OPENAI_API_KEY);
+
+  return {
+    apiRevision: API_REVISION,
+    preferredProvider,
+    configuredProviders: {
+      gemini: isConfigured(geminiKey),
+      groq: isConfigured(groqKey),
+      openai: isConfigured(openaiKey)
+    },
+    models: {
+      gemini: process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL,
+      geminiFallback: process.env.GEMINI_FALLBACK_MODEL || DEFAULT_GEMINI_FALLBACK_MODEL,
+      groq: process.env.GROQ_MODEL || DEFAULT_GROQ_MODEL,
+      openai: process.env.OPENAI_MODEL || DEFAULT_OPENAI_MODEL
+    }
+  };
+}
+
+function formatAiError(error) {
+  const message = error.message || 'AI provider request failed.';
+
+  if (/429|too many requests|quota|rate limit|rate-limits|retryDelay/i.test(message)) {
+    return 'The AI service is temporarily busy or quota-limited. Please try again in about 1 minute.';
+  }
+
+  if (/503|overloaded|high demand|temporarily unavailable|unavailable/i.test(message)) {
+    return 'The AI service is temporarily busy. Please try again shortly.';
+  }
+
+  if (error.status === 401 || error.status === 403 || /api key|invalid authentication credentials|unauthorized|forbidden/i.test(message)) {
+    return `The selected AI provider rejected its API key. Please contact the site administrator to check the service configuration.`;
+  }
+
+  return message;
+}
+
+function normalizeProvider(value) {
+  const provider = String(value || '').trim().toLowerCase();
+  return ['auto', 'gemini', 'groq', 'openai'].includes(provider) ? provider : 'auto';
+}
+
+function buildProviderPlan(preferredProvider, fallbackProvider, customKeys = {}) {
+  const preferred = normalizeProvider(preferredProvider || process.env.AI_PROVIDER || 'auto');
+  const fallback = normalizeProvider(fallbackProvider || 'groq');
+
+  const configuredProviders = {
+    gemini: isConfigured(customKeys?.geminiApiKey || customKeys?.geminiKey || process.env.GEMINI_API_KEY),
+    groq: isConfigured(customKeys?.groqApiKey || customKeys?.groqKey || process.env.GROQ_API_KEY),
+    openai: isConfigured(customKeys?.openaiApiKey || customKeys?.openaiKey || process.env.OPENAI_API_KEY)
+  };
+  const onlyConfigured = (providers) => providers.filter(provider => configuredProviders[provider]);
+
+  let order;
+  if (preferred === 'auto' || preferred === 'gemini') {
+    // Primary: Gemini, Fallback: Groq, Tertiary: OpenAI
+    order = ['gemini', fallback !== 'gemini' ? fallback : 'groq', 'openai'];
+  } else if (preferred === 'groq') {
+    // Primary: Groq, Fallback: Gemini, Tertiary: OpenAI
+    order = ['groq', fallback !== 'groq' ? fallback : 'gemini', 'openai'];
+  } else if (preferred === 'openai') {
+    // Primary: OpenAI, Fallback: Groq, Tertiary: Gemini
+    order = ['openai', fallback !== 'openai' ? fallback : 'groq', 'gemini'];
+  } else {
+    order = ['gemini', 'groq', 'openai'];
+  }
+
+  const deduped = [...new Set(order)];
+  const plan = onlyConfigured(deduped);
+  return plan.length > 0 ? plan : deduped;
+}
+
+function parseBody(req) {
+  if (!req.body) return {};
+  if (Buffer.isBuffer(req.body)) {
+    try {
+      return JSON.parse(req.body.toString('utf8'));
+    } catch {
+      return {};
+    }
+  }
+  if (typeof req.body === 'string') {
+    try {
+      return JSON.parse(req.body);
+    } catch {
+      return {};
+    }
+  }
+  return req.body;
+}
+
+function buildContext(sources) {
+  return formatLegalContext(sources);
+}
+
+
+
+const verifiedExamplesRule = `Verified public examples rule:
+- STRICT PROHIBITION: DO NOT mention, cite, or formulate any case names in format "Party v. Party" or "X v. Y" unless that exact case name is explicitly written in the retrieved materials above.
+- If no verified public example is available from the retrieved materials, you MUST say under **Verified public example:** exactly: "No verified public example is available from the current retrieved sources."
+- Do not guess, invent, or rely on memory for case citations, law reports (NWLR, FWLR), dates, judges, or facts. Rely on statutory provisions and general principles of Nigerian law.
+- Never call a case the locus classicus unless that exact case and status are verified from the retrieved materials.`;
+
+const jurisdictionPatterns = [
+  ['Abia State', /\babia\b/i],
+  ['Adamawa State', /\badamawa\b/i],
+  ['Akwa Ibom State', /\bakwa[\s-]?ibom\b/i],
+  ['Anambra State', /\banambra\b/i],
+  ['Bauchi State', /\bbauchi\b/i],
+  ['Bayelsa State', /\bbayelsa\b/i],
+  ['Benue State', /\bbenue\b/i],
+  ['Borno State', /\bborno\b/i],
+  ['Cross River State', /\bcross[\s-]?river\b/i],
+  ['Delta State', /\bdelta\b/i],
+  ['Ebonyi State', /\bebonyi\b/i],
+  ['Edo State', /\bedo\b/i],
+  ['Ekiti State', /\bekiti\b/i],
+  ['Enugu State', /\benugu\b/i],
+  ['Federal Capital Territory (Abuja)', /\b(fct|f\.c\.t\.|abuja|federal capital territory)\b/i],
+  ['Gombe State', /\bgombe\b/i],
+  ['Imo State', /\bimo\b/i],
+  ['Jigawa State', /\bjigawa\b/i],
+  ['Kaduna State', /\bkaduna\b/i],
+  ['Kano State', /\bkano\b/i],
+  ['Katsina State', /\bkatsina\b/i],
+  ['Kebbi State', /\bkebbi\b/i],
+  ['Kogi State', /\bkogi\b/i],
+  ['Kwara State', /\bkwara\b/i],
+  ['Lagos State', /\blagos\b/i],
+  ['Nasarawa State', /\b(nasarawa|nassarawa)\b/i],
+  ['Niger State', /\bniger state\b/i],
+  ['Ogun State', /\bogun\b/i],
+  ['Ondo State', /\bondo\b/i],
+  ['Osun State', /\bosun\b/i],
+  ['Oyo State', /\boyo\b/i],
+  ['Plateau State', /\bplateau\b/i],
+  ['Rivers State', /\brivers\b/i],
+  ['Sokoto State', /\bsokoto\b/i],
+  ['Taraba State', /\btaraba\b/i],
+  ['Yobe State', /\byobe\b/i],
+  ['Zamfara State', /\bzamfara\b/i],
+  ['South East Nigeria', /\b(south[\s-]?east|southeastern nigeria|igbo land|igboland)\b/i],
+  ['South South Nigeria', /\b(south[\s-]?south|niger delta)\b/i],
+  ['South West Nigeria', /\b(south[\s-]?west|southwestern nigeria|yoruba land|yorubaland)\b/i],
+  ['North Central Nigeria', /\b(north[\s-]?central|middle belt)\b/i],
+  ['North East Nigeria', /\b(north[\s-]?east|northeastern nigeria)\b/i],
+  ['North West Nigeria', /\b(north[\s-]?west|northwestern nigeria)\b/i],
+  ['Northern Nigeria', /\bnorthern nigeria\b/i],
+  ['Southern Nigeria', /\bsouthern nigeria\b/i]
+];
+
+function normalizeConversationHistory(history) {
+  if (!Array.isArray(history)) return [];
+
+  return history
+    .filter(item => item && ['user', 'assistant'].includes(item.role) && typeof item.content === 'string')
+    .slice(-10)
+    .map(item => ({
+      role: item.role,
+      content: item.content.trim().slice(0, 1200)
+    }))
+    .filter(item => item.content.length > 0);
+}
+
+function detectJurisdictions(text) {
+  if (!text) return [];
+  const matches = [];
+
+  for (const [label, pattern] of jurisdictionPatterns) {
+    if (pattern.test(text) && !matches.includes(label)) {
+      matches.push(label);
+    }
+  }
+
+  return matches;
+}
+
+function buildConversationMemory(message, history) {
+  const currentJurisdictions = detectJurisdictions(message);
+  const previousJurisdictions = [];
+  let latestPreviousJurisdiction = '';
+
+  for (const turn of history) {
+    const detected = detectJurisdictions(turn.content);
+    if (detected.length > 0) {
+      latestPreviousJurisdiction = detected[detected.length - 1];
+    }
+    for (const label of detected) {
+      if (!previousJurisdictions.includes(label)) {
+        previousJurisdictions.push(label);
+      }
+    }
+  }
+
+  const activeJurisdiction = currentJurisdictions[0] || latestPreviousJurisdiction || '';
+  const historyText = history.length
+    ? history.map((turn, index) => `${index + 1}. ${turn.role === 'user' ? 'User' : 'Assistant'}: ${turn.content}`).join('\n')
+    : 'No earlier turns in this chat.';
+
+  return `Conversation memory:
+Use this memory only to understand follow-up questions, earlier facts, parties, dates, locations, and the active jurisdiction. Do not repeat the whole history back to the user.
+
+Previous turns in this same chat:
+${historyText}
+
+Jurisdiction memory:
+- Current message mentions: ${currentJurisdictions.length ? currentJurisdictions.join(', ') : 'none'}
+- Earlier turns mention: ${previousJurisdictions.length ? previousJurisdictions.join(', ') : 'none'}
+- Active jurisdiction to apply: ${activeJurisdiction || 'none yet; ask for the state/region if the law may differ'}`;
+}
+
+function buildSearchText(message, history) {
+  const recentUserContext = history
+    .filter(turn => turn.role === 'user')
+    .slice(-3)
+    .map(turn => turn.content)
+    .join('\n');
+
+  return `${recentUserContext}\n${message}`.trim();
+}
+
+function cleanString(value, maxLength = 240) {
+  return typeof value === 'string' ? value.trim().slice(0, maxLength) : '';
+}
+
+function extractCaseAuthorities(text) {
+  const value = cleanString(text, 4000);
+  const authorities = new Set();
+  const casePatterns = [
+    /\b[A-Z][A-Za-z0-9&.,'’ -]{2,80}\s+v\.?\s+[A-Z][A-Za-z0-9&.,'’ -]{2,80}(?:\s+\(\d{4}\)[A-Za-z0-9 .()/-]{0,80})?/g
+  ];
+
+  for (const pattern of casePatterns) {
+    for (const match of value.matchAll(pattern)) {
+      const cleaned = match[0]
+        .replace(/\s+/g, ' ')
+        .replace(/[.,;:\s]+$/, '')
+        .trim();
+
+      if (cleaned.length >= 8 && cleaned.length <= 180) {
+        authorities.add(cleaned);
+      }
+    }
+  }
+
+  return [...authorities].slice(0, 6);
+}
+
+function normalizeAuthorityText(value) {
+  return cleanString(value, 240)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function findUnverifiedCaseAuthorities(answerText, verifiedText = '') {
+  const verified = normalizeAuthorityText(verifiedText);
+
+  return extractCaseAuthorities(answerText).filter(authority => {
+    const normalized = normalizeAuthorityText(authority);
+    return normalized && !verified.includes(normalized);
+  });
+}
+
+async function generateVerifiedAiAnswer(prompt, verifiedText = '', preferredProvider = 'auto', fallbackProvider = 'groq', customKeys = {}, customModels = {}) {
+  const firstDraft = await generateAiAnswer(prompt, preferredProvider, fallbackProvider, customKeys, customModels);
+  const unverifiedAuthorities = findUnverifiedCaseAuthorities(firstDraft.text, verifiedText);
+
+  if (unverifiedAuthorities.length === 0) {
+    return firstDraft;
+  }
+
+  try {
+    const rewritePrompt = `${prompt}
+
+The previous draft named these case examples or public authorities, but they were not verified in the retrieved materials:
+${unverifiedAuthorities.map(item => `- ${item}`).join('\n')}
+
+Rewrite the answer now. Remove every unverified case example, reporter citation, locus classicus claim, public example, or external authority that is not present in the retrieved materials. Do not replace them with new examples. If no verified public example is available from the retrieved materials, say exactly: "No verified public example is available from the current retrieved sources." Keep the answer useful, practical, and end with **In conclusion:**.`;
+
+    return await generateAiAnswer(rewritePrompt, preferredProvider, fallbackProvider, customKeys, customModels);
+  } catch (err) {
+    console.warn('Rewrite pass failed, returning sanitized first draft:', err?.message || err);
+    let sanitizedText = firstDraft.text;
+    for (const auth of unverifiedAuthorities) {
+      sanitizedText = sanitizedText.split(auth).join('[Unverified reference omitted]');
+    }
+    return { ...firstDraft, text: sanitizedText };
+  }
+}
+
+function buildAiResearchBasis(question, provider = 'AI') {
+  const source = {
+    id: `ai-research-${Date.now()}`,
+    category: 'Research Basis',
+    section: `${provider} general legal knowledge`,
+    title: 'AI-generated legal research basis',
+    act: `What Does Nigerian Law Say? / ${provider}`,
+    chapter: 'No matched local source',
+    part: 'General Nigerian-law response',
+    sourcePage: 'No official page retrieved',
+    sourceUrl: '',
+    isGeneratedBasis: true,
+    content: 'No exact official source or verified public example was retrieved from the Nigerian law local law database for this question. This card is not an official citation; it explains that the answer was generated without attaching a verified public example.',
+    reasoning: `The question "${cleanString(question, 220)}" did not match a stored Nigerian law public-code source strongly enough, so ${provider} answered from general Nigerian-law knowledge. Unverified case examples should not be used for this answer.`
+  };
+
+  return {
+    sources: [source],
+    reasoning: [{
+      id: source.id,
+      source: source.section,
+      rationale: source.reasoning
+    }]
+  };
+}
+
+function buildPrompt(message, localMatch, history) {
+  const hasSources = localMatch.sources && localMatch.sources.length > 0;
+  const conversationMemory = buildConversationMemory(message, history);
+
+  if (!hasSources) {
+    return `You are What Does Nigerian Law Say?, a careful Nigerian legal information assistant.
+The user may write with spelling mistakes, shorthand, Nigerian English, or informal wording.
+
+User's question:
+"${message}"
+
+${conversationMemory}
+
+Answer intelligently using your knowledge of Nigerian law. If the question concerns Nigerian law, explain the likely legal position, practical steps, and risks. If a legal point depends on state law, customary law, court documents, or facts not provided, say so clearly and ask for the missing fact naturally.
+
+${jurisdictionRule}
+
+Rules:
+1. Correct the user's spelling and infer the likely meaning silently.
+2. Be transparent when no supporting source is available.
+3. Do not invent exact deadlines, penalties, court rules, or section numbers if you are not sure.
+4. Use clear headings and short paragraphs.
+5. Apply this quotation rule:
+${quotationRule}
+6. Apply this public examples rule:
+${verifiedExamplesRule}
+7. When no retrieved exact legal text is available, do not fabricate statutory quotations, chapter numbers, page numbers, years, penalties, case examples, or deadlines.
+8. Always end with a short final summary headed exactly **In conclusion:** that directly answers the question.`;
+  }
+
+  return `You are What Does Nigerian Law Say?, a careful Nigerian legal information assistant.
+The user may write with spelling mistakes, shorthand, Nigerian English, or informal wording.
+Use the retrieved Nigerian legal materials below as your grounding, then apply general Nigerian legal knowledge where helpful.
+
+Retrieved Nigerian legal materials:
+===
+${buildContext(localMatch.sources)}
+===
+
+User's question:
+"${message}"
+
+${conversationMemory}
+
+${jurisdictionRule}
+
+Instructions:
+1. Correct the user's spelling and infer the likely meaning silently.
+2. Apply this quotation rule:
+${quotationRule}
+3. Apply this public examples rule:
+${verifiedExamplesRule}
+4. Explain the answer naturally, as a smart Nigerian-law assistant, not as a database search result.
+5. Cite or name the most relevant source, section, case, or principle from the retrieved materials where available.
+6. If the retrieved materials do not fully cover the answer, supplement carefully with general Nigerian legal principles and say when a fact depends on state/custom/court documents, but do not add public examples or case names unless verified from the retrieved materials.
+7. State source uncertainty naturally and clearly.
+8. Do not invent exact deadlines, penalties, court rules, section numbers, case examples, or locus classicus claims if they are not in the materials or you are not sure.
+9. Always end with a short final summary headed exactly **In conclusion:** that directly answers the question and gives the safest next step.`;
+}
+
+async function callGemini(prompt, modelName, apiKey) {
+  const generationConfig = {
+    temperature: 0.25,
+    topP: 0.9,
+    maxOutputTokens: 1800
+  };
+
+  // Only thinking-capable models accept thinkingConfig; other models return 400 invalid argument.
+  if (/gemini-(?:3\.[78]|2\.0.*thinking)/i.test(modelName)) {
+    generationConfig.thinkingConfig = {
+      thinkingBudget: 0
+    };
+  }
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(modelName)}:generateContent`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-goog-api-key': apiKey
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            role: 'user',
+            parts: [{ text: prompt }]
+          }
+        ],
+        generationConfig
+      })
+    }
+  );
+
+  const payload = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    const message = payload?.error?.message || `Gemini request failed with status ${response.status}`;
+    const error = new Error(message);
+    error.status = response.status;
+    error.provider = 'gemini';
+    throw error;
+  }
+
+  const text = payload?.candidates?.[0]?.content?.parts
+    ?.map(part => part.text || '')
+    .join('\n')
+    .trim();
+
+  if (!text) {
+    throw new Error('Gemini returned an empty response.');
+  }
+
+  return text;
+}
+
+async function callOpenAiCompatibleProvider({ endpoint, apiKey, modelName, prompt, provider }) {
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: modelName,
+      messages: [
+        {
+          role: 'system',
+          content: 'You are What Does Nigerian Law Say?, a careful Nigerian-law assistant. Follow the user prompt exactly.'
+        },
+        {
+          role: 'user',
+          content: prompt
+        }
+      ],
+      temperature: 0.25,
+      top_p: 0.9,
+      max_tokens: 1800
+    })
+  });
+
+  const payload = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    const message = payload?.error?.message || `${provider} request failed with status ${response.status}`;
+    const error = new Error(message);
+    error.status = response.status;
+    error.provider = provider;
+    throw error;
+  }
+
+  const text = payload?.choices?.[0]?.message?.content?.trim();
+
+  if (!text) {
+    throw new Error(`${provider} returned an empty response.`);
+  }
+
+  return text;
+}
+
+async function callOpenAi(prompt, customKeys = {}, customModels = {}) {
+  const apiKey = normalizeApiKey(customKeys?.openaiApiKey || customKeys?.openaiKey || process.env.OPENAI_API_KEY);
+
+  if (!apiKey) {
+    const error = new Error('OPENAI_API_KEY is not configured.');
+    error.status = 503;
+    error.provider = 'openai';
+    throw error;
+  }
+
+  const model = customModels?.openaiModel || process.env.OPENAI_MODEL || DEFAULT_OPENAI_MODEL;
+
+  return {
+    text: await callOpenAiCompatibleProvider({
+      endpoint: 'https://api.openai.com/v1/chat/completions',
+      apiKey,
+      modelName: model,
+      prompt,
+      provider: 'openai'
+    }),
+    provider: 'openai',
+    model
+  };
+}
+
+async function callGroq(prompt, customKeys = {}, customModels = {}) {
+  const apiKey = normalizeApiKey(customKeys?.groqApiKey || customKeys?.groqKey || process.env.GROQ_API_KEY);
+
+  if (!apiKey) {
+    const error = new Error('GROQ_API_KEY is not configured.');
+    error.status = 503;
+    error.provider = 'groq';
+    throw error;
+  }
+
+  const modelNames = [
+    customModels?.groqModel || process.env.GROQ_MODEL || DEFAULT_GROQ_MODEL,
+    DEFAULT_GROQ_FALLBACK_MODEL,
+    'openai/gpt-oss-20b',
+    'llama-3.1-8b-instant'
+  ].filter(Boolean);
+
+  let lastError;
+  for (const modelName of [...new Set(modelNames)]) {
+    try {
+      return {
+        text: await callOpenAiCompatibleProvider({
+          endpoint: 'https://api.groq.com/openai/v1/chat/completions',
+          apiKey,
+          modelName,
+          prompt,
+          provider: 'groq'
+        }),
+        provider: 'groq',
+        model: modelName
+      };
+    } catch (error) {
+      lastError = error;
+      if (!shouldTryNextAiProvider(error)) {
+        throw error;
+      }
+    }
+  }
+
+  throw lastError;
+}
+
+function shouldTryNextAiProvider(error) {
+  const retryableStatuses = new Set([401, 403, 404, 429, 500, 502, 503, 504]);
+  const message = error.message || '';
+
+  return retryableStatuses.has(error.status) || /not configured|api key|authentication|unauthorized|forbidden|not found|not supported|high demand|overloaded|temporarily unavailable|quota/i.test(message);
+}
+
+async function callGeminiProvider(prompt, customKeys = {}, customModels = {}) {
+  const apiKey = normalizeApiKey(customKeys?.geminiApiKey || customKeys?.geminiKey || process.env.GEMINI_API_KEY);
+
+  if (!apiKey) {
+    const error = new Error('GEMINI_API_KEY is not configured.');
+    error.status = 503;
+    error.provider = 'gemini';
+    throw error;
+  }
+
+  const modelNames = [
+    customModels?.geminiModel || process.env.GEMINI_MODEL || DEFAULT_GEMINI_MODEL,
+    customModels?.geminiFallbackModel || process.env.GEMINI_FALLBACK_MODEL || DEFAULT_GEMINI_FALLBACK_MODEL,
+    'gemini-3.5-flash-lite',
+    'gemini-3.1-flash-lite',
+    'gemini-3.8-flash',
+    'gemini-3.5-flash',
+    'gemini-3.7-flash'
+  ].filter(Boolean);
+
+  let lastError;
+  for (const modelName of [...new Set(modelNames)]) {
+    try {
+      return {
+        text: await callGemini(prompt, modelName, apiKey),
+        provider: 'gemini',
+        model: modelName
+      };
+    } catch (error) {
+      lastError = error;
+      if (!shouldTryNextAiProvider(error)) {
+        throw error;
+      }
+    }
+  }
+
+  throw lastError;
+}
+
+async function generateAiAnswer(prompt, preferredProvider, fallbackProvider, customKeys, customModels) {
+  const providerPlan = buildProviderPlan(preferredProvider, fallbackProvider, customKeys);
+  let lastError;
+  const primaryProvider = providerPlan[0];
+
+  for (let i = 0; i < providerPlan.length; i++) {
+    const provider = providerPlan[i];
+    try {
+      let result;
+      if (provider === 'gemini') result = await callGeminiProvider(prompt, customKeys, customModels);
+      else if (provider === 'groq') result = await callGroq(prompt, customKeys, customModels);
+      else if (provider === 'openai') result = await callOpenAi(prompt, customKeys, customModels);
+
+      if (result) {
+        return {
+          ...result,
+          fallbackUsed: i > 0,
+          primaryProvider,
+          providerPlan
+        };
+      }
+    } catch (error) {
+      console.warn(`[What Does Nigerian Law Say?] ${provider} failed (${error.message || error.status}). Attempting next provider in plan...`);
+      lastError = error;
+      if (!shouldTryNextAiProvider(error)) {
+        throw error;
+      }
+    }
+  }
+
+  throw lastError || new Error('No configured AI provider succeeded.');
+}
+
+export default async function handler(req, res) {
+  // Allow requests from a separately configured frontend origin.
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, x-goog-api-key');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
+  if (req.method !== 'POST') {
+    res.setHeader('Allow', 'POST, OPTIONS');
+    return res.status(405).json({ error: 'Method not allowed.' });
+  }
+
+  const { message, conversationHistory, aiProvider, fallbackProvider, customKeys, customModels } = parseBody(req);
+
+  if (!message || message.trim() === '') {
+    return res.status(400).json({ error: 'Message payload is required.' });
+  }
+
+  const preferredProvider = normalizeProvider(aiProvider || process.env.AI_PROVIDER || 'auto');
+  const safeFallbackProvider = normalizeProvider(fallbackProvider || 'groq');
+
+  try {
+    const cleanMessage = message.trim();
+    const normalizedHistory = normalizeConversationHistory(conversationHistory);
+    const localMatch = searchLegalDatabase(buildSearchText(cleanMessage, normalizedHistory));
+    const prompt = buildPrompt(cleanMessage, localMatch, normalizedHistory);
+    const hasVerifiedSources = localMatch.sources && localMatch.sources.length > 0;
+    const verifiedText = hasVerifiedSources ? buildContext(localMatch.sources) : '';
+    const generated = await generateVerifiedAiAnswer(prompt, verifiedText, preferredProvider, safeFallbackProvider, customKeys, customModels);
+    const providerLabel = generated.provider ? generated.provider.toUpperCase() : 'AI';
+    const researchBasis = hasVerifiedSources ? null : buildAiResearchBasis(cleanMessage, providerLabel);
+
+    return res.status(200).json({
+      answerText: generated.text,
+      sources: hasVerifiedSources ? localMatch.sources : researchBasis.sources,
+      reasoning: hasVerifiedSources ? (localMatch.reasoning || []) : researchBasis.reasoning,
+      engine: generated.provider || 'ai',
+      provider: generated.provider || 'ai',
+      model: generated.model,
+      fallbackUsed: !!generated.fallbackUsed,
+      primaryProvider: generated.primaryProvider,
+      requestedProvider: preferredProvider
+    });
+  } catch (error) {
+    const status = error.status || 502;
+    const keyDiagnostics = getProviderDiagnostics(customKeys);
+    return res.status(status).json({
+      error: formatAiError(error, keyDiagnostics),
+      engine: error.provider || preferredProvider || 'ai',
+      keyDiagnostics
+    });
+  }
+}

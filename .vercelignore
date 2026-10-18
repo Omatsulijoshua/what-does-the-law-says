@@ -1,0 +1,11 @@
+node_modules
+dist
+.openai
+.env
+.env.*
+server/.env
+server/.env.*
+server/analytics.json
+assets
+admin/preview.png
+*.log
