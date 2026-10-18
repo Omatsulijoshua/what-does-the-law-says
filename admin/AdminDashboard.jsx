@@ -296,7 +296,7 @@ export function AdminDashboard() {
 
       <div className="admin-page-content">
         {/* Close Button */}
-        <button className="modal-close-btn" onClick={() => window.location.assign('/')} aria-label="Return to public site" style={{ top: '24px', right: '24px' }}>
+        <button className="modal-close-btn" onClick={() => window.location.assign(import.meta.env.PROD ? 'https://what-does-nigeria-law-says.thispage.xyz/' : '/')} aria-label="Return to public site" style={{ top: '24px', right: '24px' }}>
           <X size={24} />
         </button>
 

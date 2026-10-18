@@ -1,11 +1,12 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "rewrites": [
+  "routes": [
     {
-      "source": "/",
+      "src": "^/$",
       "has": [{ "type": "host", "value": "admin.what-does-nigeria-law-says.thispage.xyz" }],
-      "destination": "/admin/index.html"
+      "dest": "/admin/index.html"
     },
-    { "source": "/admin", "destination": "/admin/index.html" }
+    { "src": "^/admin$", "dest": "/admin/index.html" },
+    { "handle": "filesystem" }
   ]
 }
