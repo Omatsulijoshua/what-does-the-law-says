@@ -34,7 +34,9 @@ Official guide: https://firebase.google.com/docs/auth/web/google-signin
 
 ## AI chat
 
-Set at least one nonempty server-side key (`GEMINI_API_KEY`, `GROQ_API_KEY`, or `OPENAI_API_KEY`) in the Render service's Environment settings. Set the corresponding model variable to an available model. Redeploy/restart the Render service and test `/api/chat` using a general question. No working AI credentials were available during initial setup.
+Gemini and Groq keys are configured in the Render service's Environment settings. On 18 October 2026, the service was redeployed and `/api/chat` returned HTTP 200 for both providers: Gemini using `gemini-3.5-flash-lite` and Groq using `openai/gpt-oss-120b`, each without falling back to another provider. Keys remain server-side and are not included in frontend builds or Git.
+
+To replace a key, update `GEMINI_API_KEY`, `GROQ_API_KEY`, or `OPENAI_API_KEY` in Render's Environment settings and redeploy. Set the corresponding model variable when changing to a different available model.
 
 ## Admin backend
 
