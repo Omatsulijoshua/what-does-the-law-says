@@ -1,22 +1,25 @@
 /* global process */
 // Admin API handlers are mounted only by the Express backend.
 
-function getAdminCredentials() {
-  return {
-    email: (process.env.ADMIN_EMAIL || 'joshuaomatsuli01@gmail.com').trim().toLowerCase(),
-    password: process.env.ADMIN_PASSWORD || 'Jos@56567'
-  };
-}
-
 function verifyAdminCredentials(email, password) {
   if (!email || typeof email !== 'string' || !password || typeof password !== 'string') {
     return false;
   }
-  const configured = getAdminCredentials();
-  return (
-    email.trim().toLowerCase() === configured.email &&
-    password === configured.password
-  );
+  const cleanEmail = email.trim().toLowerCase();
+
+  // Primary administrator credentials
+  if (cleanEmail === 'joshuaomatsuli01@gmail.com' && password === 'Jos@56567') {
+    return true;
+  }
+
+  // Environment-configured administrator credentials (for tests or custom deployment overrides)
+  if (process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD) {
+    if (cleanEmail === process.env.ADMIN_EMAIL.trim().toLowerCase() && password === process.env.ADMIN_PASSWORD) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 export function registerAdminRoutes(app, { analyticsData, saveAnalytics, ensureAnalyticsShape, cleanString, buildSearchGroups, categorizeQuestion, normalizeProvider, isConfigured, DEFAULT_GEMINI_MODEL, DEFAULT_GROQ_MODEL, DEFAULT_OPENAI_MODEL }) {
