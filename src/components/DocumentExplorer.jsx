@@ -48,8 +48,7 @@ export function DocumentExplorer({ onClose, onSelectSection }) {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          gap: '16px',
-          backgroundColor: 'rgba(0,0,0,0.1)'
+          gap: '16px'
         }}>
           {/* Categories Selector */}
           <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', flex: 1 }}>
@@ -163,15 +162,13 @@ export function DocumentExplorer({ onClose, onSelectSection }) {
 
                 <div className="explorer-summary" style={{
                   padding: '24px',
-                  backgroundColor: 'rgba(0,0,0,0.3)',
                   border: '1px solid var(--border-light)',
                   borderRadius: '12px',
                   lineHeight: '1.7',
                   fontSize: '0.98rem',
                   fontFamily: 'var(--font-serif)',
                   color: 'var(--text-primary)',
-                  borderLeft: '4px solid var(--gold-primary)',
-                  boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.5)'
+                  borderLeft: '4px solid var(--gold-primary)'
                 }}>
                   <div className="source-text-label">Legal summary · check the source for exact wording</div>
                   {activeSection.content}

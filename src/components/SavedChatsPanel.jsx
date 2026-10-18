@@ -108,10 +108,9 @@ export function SavedChatsPanel({
 
       {/* Newsletter Subscription Toggle */}
       {currentUser && (
-        <div style={{
+        <div className="newsletter-box" style={{
           padding: '12px 16px',
           borderTop: '1px solid var(--border-light)',
-          backgroundColor: 'rgba(0, 0, 0, 0.1)',
           display: 'flex',
           flexDirection: 'column',
           gap: '8px'

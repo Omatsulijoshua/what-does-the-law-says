@@ -45,17 +45,16 @@ export function RightPanel({ sources = [], reasoning = [], bookmarks = [], onTog
             <p style={{ fontSize: '0.8rem', lineHeight: '1.6', maxWidth: '280px' }}>
               Ask a question to see relevant legal summaries, explanations and available source links here.
             </p>
-            <div style={{
+            <div className="supported-codes-card" style={{
               marginTop: '16px',
               padding: '12px',
               border: '1px dashed var(--border-light)',
               borderRadius: '8px',
               fontSize: '0.75rem',
               textAlign: 'left',
-              width: '100%',
-              backgroundColor: 'rgba(0,0,0,0.1)'
+              width: '100%'
             }}>
-              <span style={{ fontWeight: 'bold', color: 'var(--gold-primary)' }}>Supported Codes:</span>
+              <span className="supported-codes-title" style={{ fontWeight: 'bold' }}>Supported Codes:</span>
               <ul style={{ marginLeft: '14px', marginTop: '4px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
                 <li>1999 Constitution (Fundamental Rights)</li>
                 <li>Land Use Act of 1978</li>
