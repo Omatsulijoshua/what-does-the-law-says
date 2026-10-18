@@ -1,6 +1,11 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
+    {
+      "source": "/",
+      "has": [{ "type": "host", "value": "admin.what-does-nigeria-law-says.thispage.xyz" }],
+      "destination": "/admin/index.html"
+    },
     { "source": "/admin", "destination": "/admin/index.html" }
   ]
 }

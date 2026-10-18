@@ -40,6 +40,8 @@ To replace a key, update `GEMINI_API_KEY`, `GROQ_API_KEY`, or `OPENAI_API_KEY` i
 
 ## Admin backend
 
+The dashboard is available at `https://admin.what-does-nigeria-law-says.thispage.xyz/`. Vercel routes this host's root to the admin entry point; the Express API allows this origin through `ADMIN_ORIGINS` (which defaults to that admin host).
+
 The admin page and Express management APIs are deployed. The backend loads administrator credentials from the Render secret file `/etc/secrets/backend.env`; local credentials are in the ignored `.vercel/admin-credentials.txt` file. Admin login and the CORS preflight from the custom frontend domain were checked successfully.
 
 Render is using the free plan. Its filesystem is ephemeral: analytics and published articles currently do not survive all restarts/redeploys. The server supports `DATA_DIR` for a persistent disk when one is provisioned; a durable database is another option. No paid disk was provisioned.

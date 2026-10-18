@@ -25,6 +25,8 @@ const ANALYTICS_FILE = path.join(DATA_DIR, 'analytics.json');
 // Middleware
 const allowedOrigins = (process.env.FRONTEND_ORIGINS || 'https://what-does-nigeria-law-says.thispage.xyz,https://what-does-nigerian-law-say.vercel.app')
   .split(',').map(origin => origin.trim()).filter(Boolean);
+allowedOrigins.push(...(process.env.ADMIN_ORIGINS || 'https://admin.what-does-nigeria-law-says.thispage.xyz')
+  .split(',').map(origin => origin.trim()).filter(Boolean));
 if (process.env.NODE_ENV !== 'production') allowedOrigins.push('http://localhost:5173', 'http://127.0.0.1:5173');
 app.use(cors({
   origin(origin, callback) { callback(null, !origin || allowedOrigins.includes(origin)); }
