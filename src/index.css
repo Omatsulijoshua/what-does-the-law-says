@@ -105,11 +105,11 @@ body {
   height: 55vw;
   max-width: 600px;
   max-height: 600px;
-  background-image: url('/brand/court-symbol.svg');
+  background-image: url('/brand/nigeria-coat-of-arms.svg');
   background-size: contain;
   background-position: center;
   background-repeat: no-repeat;
-  opacity: 0.035;
+  opacity: 0.06;
   pointer-events: none;
   z-index: 0;
   transition: var(--transition-smooth);
@@ -117,7 +117,7 @@ body {
 
 :root[data-theme="light"] {
   .watermark-bg {
-    opacity: 0.055;
+    opacity: 0.045;
   }
 }
 
@@ -413,11 +413,21 @@ body {
 
 /* Right Content Area - Assistant & Chat */
 .assistant-panel {
+  position: relative;
+  isolation: isolate;
   display: flex;
   flex-direction: column;
   height: 100vh;
   overflow: hidden;
   background: radial-gradient(circle at 70% 30%, var(--green-glow) 0%, transparent 60%);
+}
+
+.assistant-panel > .watermark-bg {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: min(88%, 600px);
+  height: min(80%, 600px);
 }
 
 .app-topbar {

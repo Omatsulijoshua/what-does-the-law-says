@@ -507,9 +507,6 @@ function App() {
 
   return (
     <div className="app-container">
-      {/* Background Watermark Coat of Arms */}
-      <div className="watermark-bg"></div>
-
       {/* Left Sidebar: Saved Chats List */}
       <SavedChatsPanel
         chats={chats}
@@ -536,6 +533,7 @@ function App() {
 
       {/* Center Panel: Main UI & Assistant Chat */}
       <div className="assistant-panel">
+        <div className="watermark-bg" aria-hidden="true"></div>
         {/* Topbar navigation */}
         <header className="app-topbar">
           <div className="brand">
