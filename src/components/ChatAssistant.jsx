@@ -3,7 +3,7 @@ import { Send, Trash2, ShieldCheck, House, Gavel, Car, HeartHandshake, KeyRound,
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { startAudioRecording, stopAudioRecordingAndTranscribe, cancelAudioRecording, speakText, stopSpeaking } from '../utils/voiceService';
 
-export function ChatAssistant({ messages, onSendMessage, onClearChat, isGenerating, onSuggestionClick, currentUser }) {
+export function ChatAssistant({ messages, onSendMessage, onClearChat, isGenerating, onSuggestionClick, currentUser, aiQuotaRemaining }) {
   const [input, setInput] = useState('');
   const [thinkingText, setThinkingText] = useState('Searching legal database...');
   const [isRecording, setIsRecording] = useState(false);
@@ -366,10 +366,25 @@ export function ChatAssistant({ messages, onSendMessage, onClearChat, isGenerati
             )}
           </div>
         </form>
-        <details className="legal-disclaimer">
-          <summary>Legal information, not legal advice</summary>
-          <p>AI-assisted summaries can contain errors. Check the sources and current amendments. Consult a Nigerian legal practitioner for advice on your circumstances.</p>
-        </details>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', marginTop: '6px' }}>
+          <details className="legal-disclaimer" style={{ margin: 0 }}>
+            <summary>Legal information, not legal advice</summary>
+            <p>AI-assisted summaries can contain errors. Check the sources and current amendments. Consult a Nigerian legal practitioner for advice on your circumstances.</p>
+          </details>
+          <span style={{
+            fontSize: '0.7rem',
+            color: aiQuotaRemaining === 0 ? 'var(--gold-primary)' : 'var(--text-muted)',
+            fontWeight: aiQuotaRemaining === 0 ? '600' : 'normal',
+            whiteSpace: 'nowrap',
+            opacity: 0.85
+          }}>
+            {typeof aiQuotaRemaining === 'number'
+              ? (aiQuotaRemaining === 0
+                  ? 'Daily free quota reached (resets at midnight UTC)'
+                  : `Free AI Tier: ${aiQuotaRemaining} queries left today`)
+              : 'Free AI Tier (Groq & Gemini)'}
+          </span>
+        </div>
       </div>
     </div>
   );

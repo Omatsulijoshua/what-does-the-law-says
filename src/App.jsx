@@ -9,6 +9,7 @@ import { ArticlesModal } from './components/ArticlesModal';
 import { fetchWithTimeout, getApiEndpoint, getApiUrl } from './utils/api';
 import { BookOpen, Menu, FileText, Sun, Moon, MessageSquare } from 'lucide-react';
 import { applyTheme, getInitialTheme } from './utils/theme';
+import { pruneConversations, pruneAllStoredChats, MAX_SAVED_CONVERSATIONS } from './utils/aiRateLimiter';
 
 const getChatsStorageKey = (user) => {
   return user ? `nigerian_law_user_chats_${user.id}` : 'nigerian_law_guest_chats';
@@ -107,6 +108,7 @@ function App() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [showExplorer, setShowExplorer] = useState(false);
   const [showArticles, setShowArticles] = useState(false);
+  const [aiQuotaRemaining, setAiQuotaRemaining] = useState(null);
   const [isSubscribed, setIsSubscribed] = useState(true);
   const [showHistoryMobile, setShowHistoryMobile] = useState(false);
   const [showSourcesMobile, setShowSourcesMobile] = useState(false);
@@ -155,6 +157,11 @@ function App() {
       }
     };
     trackVisit();
+  }, []);
+
+  // Prune any stored conversations exceeding the maximum 10 on mount
+  useEffect(() => {
+    pruneAllStoredChats(window.localStorage, MAX_SAVED_CONVERSATIONS);
   }, []);
 
   // Sync bookmarks to localStorage
@@ -231,6 +238,14 @@ function App() {
     }
   };
 
+  // Helper: Delete all conversations on this account
+  const handleClearAllChats = () => {
+    setChats([]);
+    const key = getChatsStorageKey(currentUser);
+    localStorage.removeItem(key);
+    handleCreateNewChat();
+  };
+
   // Helper: Update state & localStorage when a message is sent or generated
   const updateChatsList = (chatId, finalMessages, sources, reasoning, initialText) => {
     const exists = chats.some(c => c.id === chatId);
@@ -261,6 +276,9 @@ function App() {
       };
       updatedChats = [newChat, ...chats];
     }
+
+    // Limit to at most 10 conversations per account - delete all older conversations
+    updatedChats = pruneConversations(updatedChats, MAX_SAVED_CONVERSATIONS);
 
     setChats(updatedChats);
     const key = getChatsStorageKey(currentUser);
@@ -301,7 +319,17 @@ function App() {
     let loadedChats = [];
 
     if (savedChats) {
-      loadedChats = JSON.parse(savedChats);
+      try {
+        const parsed = JSON.parse(savedChats);
+        if (Array.isArray(parsed)) {
+          loadedChats = pruneConversations(parsed, MAX_SAVED_CONVERSATIONS);
+          if (loadedChats.length !== parsed.length) {
+            localStorage.setItem(key, JSON.stringify(loadedChats));
+          }
+        }
+      } catch (err) {
+        console.error('Failed to parse saved chats:', err);
+      }
     } else if (user) {
       // Data Migration check: see if they have old single-chat data we can import
       const oldSingleChat = localStorage.getItem(`nigerian_law_chats_${user.id}`);
@@ -375,10 +403,14 @@ function App() {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'AI server returned an error.');
+        const limitError = errorData.error || (response.status === 429 ? 'Usage limit reached on free AI tier. Please wait or try again later.' : 'AI server returned an error.');
+        throw new Error(limitError);
       }
 
       const data = await response.json();
+      if (typeof data.dailyRemaining === 'number') {
+        setAiQuotaRemaining(data.dailyRemaining);
+      }
 
       // Enforce minimum thinking delay
       const elapsed = Date.now() - startTime;
@@ -522,6 +554,7 @@ function App() {
           setShowHistoryMobile(false);
         }}
         onDeleteChat={handleDeleteChat}
+        onClearAllChats={handleClearAllChats}
         currentUser={currentUser}
         onArticlesClick={() => {
           setShowArticles(true);
@@ -608,6 +641,7 @@ function App() {
           isGenerating={isGenerating}
           onSuggestionClick={handleSuggestionClick}
           currentUser={currentUser}
+          aiQuotaRemaining={aiQuotaRemaining}
         />
         <nav className="mobile-navigation" aria-label="Workspace navigation">
           <button onClick={() => setShowHistoryMobile(true)}><MessageSquare size={19} /><span>Chats</span></button>

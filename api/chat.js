@@ -1,6 +1,7 @@
 import { jurisdictionRule, quotationRule, formatLegalContext } from '../src/utils/legalPolicy.js';
 /* global Buffer, process */
 import { searchLegalDatabase } from '../src/utils/legalSearch.js';
+import { defaultAiLimiter, extractClientIdentifier, hasUserCustomKeys } from '../src/utils/aiRateLimiter.js';
 
 const DEFAULT_OPENAI_MODEL = 'gpt-4o-mini';
 const DEFAULT_GROQ_MODEL = 'openai/gpt-oss-120b';
@@ -677,10 +678,27 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed.' });
   }
 
-  const { message, conversationHistory, aiProvider, fallbackProvider, customKeys, customModels } = parseBody(req);
+  const { message, conversationHistory, aiProvider, fallbackProvider, customKeys, customModels, user, sessionId } = parseBody(req);
 
   if (!message || message.trim() === '') {
     return res.status(400).json({ error: 'Message payload is required.' });
+  }
+
+  // Enforce usage limits for free AI tiers (Groq and Gemini)
+  const clientKey = extractClientIdentifier(req, user, sessionId);
+  const hasCustomKeys = hasUserCustomKeys(customKeys);
+  const limitCheck = defaultAiLimiter.checkLimit(clientKey, { hasCustomKeys });
+
+  if (!limitCheck.allowed) {
+    if (limitCheck.retryAfter) {
+      res.setHeader('Retry-After', String(limitCheck.retryAfter));
+    }
+    return res.status(limitCheck.status || 429).json({
+      error: limitCheck.message,
+      rateLimited: true,
+      limitType: limitCheck.limitType,
+      retryAfter: limitCheck.retryAfter
+    });
   }
 
   const preferredProvider = normalizeProvider(aiProvider || process.env.AI_PROVIDER || 'auto');
@@ -706,7 +724,9 @@ export default async function handler(req, res) {
       model: generated.model,
       fallbackUsed: !!generated.fallbackUsed,
       primaryProvider: generated.primaryProvider,
-      requestedProvider: preferredProvider
+      requestedProvider: preferredProvider,
+      dailyRemaining: limitCheck.dailyRemaining,
+      dailyLimit: limitCheck.dailyLimit
     });
   } catch (error) {
     const status = error.status || 502;

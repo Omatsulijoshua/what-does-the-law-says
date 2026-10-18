@@ -7,6 +7,7 @@ export function SavedChatsPanel({
   onSelectChat, 
   onCreateNewChat, 
   onDeleteChat, 
+  onClearAllChats,
   currentUser,
   onArticlesClick,
   isSubscribed,
@@ -53,10 +54,44 @@ export function SavedChatsPanel({
 
       {/* History List */}
       <div className="history-scroll">
-        <div className="history-title-row">
-          <History size={14} style={{ color: 'var(--gold-primary)' }} />
-          <span>Saved Conversations</span>
+        <div className="history-title-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingRight: '4px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <History size={14} style={{ color: 'var(--gold-primary)' }} />
+            <span>Saved Chats {currentUser ? `(${chats.length}/10)` : ''}</span>
+          </div>
+          {currentUser && chats.length > 0 && (
+            <button
+              onClick={() => {
+                if (window.confirm('Delete all saved conversations on this account? This cannot be undone.')) {
+                  onClearAllChats?.();
+                }
+              }}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--text-muted)',
+                cursor: 'pointer',
+                fontSize: '0.65rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '3px',
+                padding: '2px 4px',
+                borderRadius: '4px'
+              }}
+              onMouseOver={(e) => { e.currentTarget.style.color = '#ef4444'; }}
+              onMouseOut={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; }}
+              title="Delete all conversations on this account"
+            >
+              <Trash2 size={11} />
+              <span>Clear All</span>
+            </button>
+          )}
         </div>
+        {currentUser && (
+          <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', padding: '0 6px', marginTop: '-6px', lineHeight: '1.3' }}>
+            Max 10 conversations per account. Older chats are automatically deleted.
+          </div>
+        )}
 
         {!currentUser ? (
           // Guest status prompt

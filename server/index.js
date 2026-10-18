@@ -8,6 +8,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { searchLegalDatabase } from '../src/utils/legalSearch.js';
+import { defaultAiLimiter, extractClientIdentifier, hasUserCustomKeys } from '../src/utils/aiRateLimiter.js';
 
 // Load environmental variables
 dotenv.config({ path: process.env.ENV_FILE || path.join(path.dirname(fileURLToPath(import.meta.url)), '.env') });
@@ -233,7 +234,7 @@ function updateRegisteredSearchStats(questionRecord) {
       sessionId: questionRecord.sessionId
     },
     ...reg.searchHistory
-  ].slice(0, 25);
+  ].slice(0, 10);
 }
 
 function rebuildRegistrationSearchStats() {
@@ -287,7 +288,7 @@ function rebuildRegistrationSearchStats() {
       reg.lastQuestionAt = question.timestamp;
     }
 
-    if (reg.searchHistory.length < 25) {
+    if (reg.searchHistory.length < 10) {
       reg.searchHistory.push({
         text: question.text,
         category: question.category,
@@ -1064,6 +1065,23 @@ app.post('/api/chat', async (req, res) => {
     return res.status(400).json({ error: 'Message payload is required.' });
   }
 
+  // Enforce usage limits for free AI tiers (Groq and Gemini)
+  const clientKey = extractClientIdentifier(req, user, sessionId);
+  const hasCustomKeys = hasUserCustomKeys(customKeys);
+  const limitCheck = defaultAiLimiter.checkLimit(clientKey, { hasCustomKeys });
+
+  if (!limitCheck.allowed) {
+    if (limitCheck.retryAfter) {
+      res.setHeader('Retry-After', String(limitCheck.retryAfter));
+    }
+    return res.status(limitCheck.status || 429).json({
+      error: limitCheck.message,
+      rateLimited: true,
+      limitType: limitCheck.limitType,
+      retryAfter: limitCheck.retryAfter
+    });
+  }
+
   const cleanMessage = message.trim();
   const normalizedHistory = normalizeConversationHistory(conversationHistory);
   const conversationMemory = buildConversationMemory(cleanMessage, normalizedHistory);
@@ -1173,7 +1191,9 @@ ${jurisdictionRule}
       model: generated.model,
       fallbackUsed: !!generated.fallbackUsed,
       primaryProvider: generated.primaryProvider,
-      requestedProvider: preferredProvider
+      requestedProvider: preferredProvider,
+      dailyRemaining: limitCheck.dailyRemaining,
+      dailyLimit: limitCheck.dailyLimit
     });
   } catch (err) {
     console.error('❌ AI generation failed across all providers:', err.message);
