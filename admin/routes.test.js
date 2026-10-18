@@ -50,3 +50,18 @@ test('admin login still returns analytics for configured credentials', t => {
   assert.equal(response.body.stats.registeredCount, 0);
   assert.deepEqual(response.body.stats.articles, []);
 });
+
+test('admin login succeeds with configured default administrator credentials', t => {
+  const oldEmail = process.env.ADMIN_EMAIL;
+  const oldPassword = process.env.ADMIN_PASSWORD;
+  delete process.env.ADMIN_EMAIL;
+  delete process.env.ADMIN_PASSWORD;
+  t.after(() => {
+    if (oldEmail === undefined) delete process.env.ADMIN_EMAIL; else process.env.ADMIN_EMAIL = oldEmail;
+    if (oldPassword === undefined) delete process.env.ADMIN_PASSWORD; else process.env.ADMIN_PASSWORD = oldPassword;
+  });
+  const { routes, response } = setup();
+  routes.get('POST /api/admin/login')({ body: { email: 'joshuaomatsuli01@gmail.com', password: 'Jos@56567' } }, response);
+  assert.equal(response.statusCode, 200);
+  assert.equal(response.body.success, true);
+});

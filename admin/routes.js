@@ -1,11 +1,30 @@
 /* global process */
 // Admin API handlers are mounted only by the Express backend.
+
+function getAdminCredentials() {
+  return {
+    email: (process.env.ADMIN_EMAIL || 'joshuaomatsuli01@gmail.com').trim().toLowerCase(),
+    password: process.env.ADMIN_PASSWORD || 'Jos@56567'
+  };
+}
+
+function verifyAdminCredentials(email, password) {
+  if (!email || typeof email !== 'string' || !password || typeof password !== 'string') {
+    return false;
+  }
+  const configured = getAdminCredentials();
+  return (
+    email.trim().toLowerCase() === configured.email &&
+    password === configured.password
+  );
+}
+
 export function registerAdminRoutes(app, { analyticsData, saveAnalytics, ensureAnalyticsShape, cleanString, buildSearchGroups, categorizeQuestion, normalizeProvider, isConfigured, DEFAULT_GEMINI_MODEL, DEFAULT_GROQ_MODEL, DEFAULT_OPENAI_MODEL }) {
 // Publish Article & Simulate Email Dispatch Endpoint
 app.post('/api/admin/publish-article', (req, res) => {
   const { email, password, title, subtitle, thumbnail, content, audience } = req.body;
 
-  if (process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD && email === process.env.ADMIN_EMAIL && password === process.env.ADMIN_PASSWORD) {
+  if (verifyAdminCredentials(email, password)) {
     if (!title || !content) {
       return res.status(400).json({ error: 'Title and Content are required.' });
     }
@@ -62,7 +81,7 @@ app.post('/api/admin/publish-article', (req, res) => {
 app.post('/api/admin/login', (req, res) => {
   const { email, password } = req.body;
 
-  if (process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD && email === process.env.ADMIN_EMAIL && password === process.env.ADMIN_PASSWORD) {
+  if (verifyAdminCredentials(email, password)) {
     const now = Date.now();
     const oneDay = 24 * 60 * 60 * 1000;
 
@@ -145,7 +164,7 @@ app.get('/api/admin/ai-settings', (req, res) => {
 app.post('/api/admin/ai-settings', (req, res) => {
   const { email, password, aiProvider, geminiApiKey, groqApiKey, openaiApiKey } = req.body || {};
 
-  if (process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD && email === process.env.ADMIN_EMAIL && password === process.env.ADMIN_PASSWORD) {
+  if (verifyAdminCredentials(email, password)) {
     if (aiProvider) {
       process.env.AI_PROVIDER = normalizeProvider(aiProvider);
     }
